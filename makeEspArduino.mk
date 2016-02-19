@@ -21,7 +21,7 @@
 SKETCH ?= $(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino
 LIBS ?= $(ESP_LIBS)/Wire \
         $(ESP_LIBS)/ESP8266WiFi \
-		  $(ESP_LIBS)/ESP8266mDNS \
+        $(ESP_LIBS)/ESP8266mDNS \
         $(ESP_LIBS)/ESP8266WebServer
 
 # Esp8266 Arduino git location
@@ -88,7 +88,7 @@ CORE_OBJ = $(patsubst %,$(OBJ_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(OBJ_DIR)/core.ar
 
 # User defined compilation units
-USER_SRC = $(SKETCH) $(shell find $(LIBS) -name "*.cpp")
+USER_SRC = $(SKETCH) $(shell find $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
 # Object file suffix seems to be significant for the linker...
 USER_OBJ = $(subst .ino,.cpp,$(patsubst %,$(OBJ_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS = $(sort $(dir $(USER_SRC)))
