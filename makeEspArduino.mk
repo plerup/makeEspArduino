@@ -35,6 +35,10 @@ FLASH_MODE ?= dio
 FLASH_SPEED ?= 40
 FLASH_LAYOUT ?= eagle.flash.4m.ld
 
+# In bytes
+RAM_SIZE_BYTES ?= 81920
+FLASH_SIZE_BYTES ?= 1044464
+
 # Upload parameters
 UPLOAD_SPEED ?= 230400
 UPLOAD_PORT ?= /dev/ttyUSB0
@@ -114,8 +118,11 @@ MEM_USAGE = \
       $$r += $$1 if /^\.(?:data|rodata|bss)\s+(\d+)/;\
 		  $$f += $$1 if /^\.(?:irom0\.text|text|data|rodata)\s+(\d+)/;\
 	 }\
-	 print "\nMemory usage\n";\
-	 print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "Ram:", $$r, "Flash:", $$f);'
+	 print "\nESP8266 memory usage\n\n";\
+	 print sprintf("Data:      %-6sbytes (%.1f%% Full)\n(.data + .rodata + .bss)\n\n",\
+	 $$r, $$r*100/$(RAM_SIZE_BYTES) );\
+	 print sprintf("Program:   %-6s bytes (%.1f%% Full)\n(.irom0.text + .text + .data + .rodata)\n\n",\
+	 $$f, $$f*100/$(FLASH_SIZE_BYTES) );'
 
 # Build rules
 $(OBJ_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H)
@@ -150,7 +157,7 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	$(CPP) $(C_DEFINES) $(C_INCLUDES) $(CPP_FLAGS) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
 	$(LD) $(LD_FLAGS) -Wl,--start-group $^ $(BUILD_INFO_OBJ) $(LD_STD_LIBS) -Wl,--end-group -L$(OBJ_DIR) -o $(MAIN_ELF)
 	$(ESP_TOOL) -eo $(ESP_ROOT)/bootloaders/eboot/eboot.elf -bo $@ -bm $(FLASH_MODE) -bf $(FLASH_SPEED) -bz $(FLASH_SIZE) -bs .text -bp 4096 -ec -eo $(MAIN_ELF) -bs .irom0.text -bs .text -bs .data -bs .rodata -bc -ec
-	$(TOOLS_BIN)/xtensa-lx106-elf-size -A $(MAIN_ELF) | perl -e $(MEM_USAGE)
+	make size
 	perl -e 'print "Build complete. Elapsed time: ", time()-$(START_TIME),  " seconds\n\n"'
 
 upload: all
@@ -160,10 +167,13 @@ clean:
 	echo Removing all intermediate build files...
 	rm  -f $(OBJ_DIR)/*
 
+size: $(MAIN_ELF)
+	$(TOOLS_BIN)/xtensa-lx106-elf-size -A $(MAIN_ELF) | perl -e $(MEM_USAGE)
+
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
-.PHONY: all
+.PHONY: all clean size
 all: $(OBJ_DIR) $(BUILD_INFO_H) $(MAIN_EXE)
 
 
