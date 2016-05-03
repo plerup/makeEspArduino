@@ -41,6 +41,10 @@ UPLOAD_PORT ?= /dev/ttyUSB0
 UPLOAD_VERB ?= -v
 UPLOAD_RESET ?= ck
 
+# OTA parameters
+ESP_ADDR ?= ESP_DA6ABC
+ESP_PORT ?= 8266
+ESP_PWD ?= 123
 #====================================================================================
 # The area below should normally not need to be edited
 #====================================================================================
@@ -72,6 +76,7 @@ CPP = $(TOOLS_BIN)/xtensa-lx106-elf-g++
 LD =  $(CC)
 AR = $(TOOLS_BIN)/xtensa-lx106-elf-ar
 ESP_TOOL = $(TOOLS_ROOT)/esptool/esptool
+OTA_TOOL = $(TOOLS_ROOT)/espota.py
 
 INCLUDE_DIRS += $(SDK_ROOT)/include $(SDK_ROOT)/lwip/include $(CORE_DIR) $(ESP_ROOT)/variants/generic $(OBJ_DIR)
 C_DEFINES = -D__ets__ -DICACHE_FLASH -U__STRICT_ANSI__ -DF_CPU=80000000L -DARDUINO=10605 -DARDUINO_ESP8266_ESP01 -DARDUINO_ARCH_ESP8266 -DESP8266
@@ -155,6 +160,9 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 
 upload: all
 	$(ESP_TOOL) $(UPLOAD_VERB) -cd $(UPLOAD_RESET) -cb $(UPLOAD_SPEED) -cp $(UPLOAD_PORT) -ca 0x00000 -cf $(MAIN_EXE)
+
+ota: all
+	$(OTA_TOOL) -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
 
 clean:
 	echo Removing all intermediate build files...
