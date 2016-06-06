@@ -27,12 +27,13 @@ Example:
 
     cd ~
     git clone https://github.com/esp8266/Arduino.git
+    mv Arduino esp8266
     cd esp8266/tools
     python get.py
 
-Determine which version you want to use. Example:
+Determine which version you want to use. [See releases](https://github.com/esp8266/Arduino/releases) Example:
 
-    git checkout 2.0.0
+    git checkout tags/2.2.0
 
 Clone this repository.
 
