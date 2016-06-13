@@ -86,6 +86,11 @@ CPP_FLAGS ?= -c -Os -g -mlongcalls -mtext-section-literals -fno-exceptions -fno-
 S_FLAGS ?= -c -g -x assembler-with-cpp -MMD
 LD_FLAGS ?= -g -w -Os -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static -L$(SDK_ROOT)/lib -L$(SDK_ROOT)/ld -T$(FLASH_LAYOUT) -Wl,--gc-sections -Wl,-wrap,system_restart_local -Wl,-wrap,register_chipv6_phy
 LD_STD_LIBS ?= -lm -lgcc -lhal -lphy -lnet80211 -llwip -lwpa -lmain -lpp -lsmartconfig -lwps -lcrypto -laxtls
+# stdc++ used in later versions of esp8266 Arduino
+LD_STD_CPP = lstdc++
+ifneq ($(shell grep $(LD_STD_CPP) $(ESP_ROOT)/platform.txt),)
+	LD_STD_LIBS += -$(LD_STD_CPP)
+endif
 
 # Core source files
 CORE_DIR = $(ESP_ROOT)/cores/esp8266
