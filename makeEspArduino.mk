@@ -178,7 +178,7 @@ ota: all
 	$(OTA_TOOL) -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
 
 http: all
-	$(HTTP_TOOL) -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD)  http://$(HTTP_ADDR)$(HTTP_URI)
+	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD)  http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
 clean:
