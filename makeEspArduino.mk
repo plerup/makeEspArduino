@@ -45,6 +45,13 @@ UPLOAD_RESET ?= ck
 ESP_ADDR ?= ESP_DA6ABC
 ESP_PORT ?= 8266
 ESP_PWD ?= 123
+
+# HTTP update parameters
+HTTP_ADDR ?= ESP_DA6ABC
+HTTP_URI ?= /update
+HTTP_PWD ?= user
+HTTP_USR ?= password
+
 #====================================================================================
 # The area below should normally not need to be edited
 #====================================================================================
@@ -77,6 +84,7 @@ LD =  $(CC)
 AR = $(TOOLS_BIN)/xtensa-lx106-elf-ar
 ESP_TOOL = $(TOOLS_ROOT)/esptool/esptool
 OTA_TOOL = $(TOOLS_ROOT)/espota.py
+HTTP_TOOL = curl
 
 INCLUDE_DIRS += $(SDK_ROOT)/include $(SDK_ROOT)/lwip/include $(CORE_DIR) $(ESP_ROOT)/variants/generic $(OBJ_DIR)
 C_DEFINES = -D__ets__ -DICACHE_FLASH -U__STRICT_ANSI__ -DF_CPU=80000000L -DARDUINO=10605 -DARDUINO_ESP8266_ESP01 -DARDUINO_ARCH_ESP8266 -DESP8266
@@ -168,6 +176,10 @@ upload: all
 
 ota: all
 	$(OTA_TOOL) -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
+
+http: all
+	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD)  http://$(HTTP_ADDR)$(HTTP_URI)
+	echo "\n"
 
 clean:
 	echo Removing all intermediate build files...
