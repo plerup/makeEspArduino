@@ -29,6 +29,9 @@ ESP_ROOT ?= $(HOME)/esp8266
 # Output directory
 BUILD_ROOT ?= /tmp/$(MAIN_NAME)
 
+# Which variant to use from $(ESP_ROOT)/variants/
+INCLUDE_VARIANT ?= generic
+
 # Board definitions
 FLASH_SIZE ?= 4M
 FLASH_MODE ?= dio
@@ -86,7 +89,7 @@ ESP_TOOL = $(TOOLS_ROOT)/esptool/esptool
 OTA_TOOL = $(TOOLS_ROOT)/espota.py
 HTTP_TOOL = curl
 
-INCLUDE_DIRS += $(SDK_ROOT)/include $(SDK_ROOT)/lwip/include $(CORE_DIR) $(ESP_ROOT)/variants/generic $(OBJ_DIR)
+INCLUDE_DIRS += $(SDK_ROOT)/include $(SDK_ROOT)/lwip/include $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(OBJ_DIR)
 C_DEFINES = -D__ets__ -DICACHE_FLASH -U__STRICT_ANSI__ -DF_CPU=80000000L -DARDUINO=10605 -DARDUINO_ESP8266_ESP01 -DARDUINO_ARCH_ESP8266 -DESP8266
 C_INCLUDES = $(foreach dir,$(INCLUDE_DIRS) $(USER_INC_DIRS),-I$(dir))
 C_FLAGS ?= -c -Os -g -Wpointer-arith -Wno-implicit-function-declaration -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals -falign-functions=4 -MMD -std=gnu99 -ffunction-sections -fdata-sections
