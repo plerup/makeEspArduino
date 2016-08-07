@@ -27,16 +27,16 @@ LIBS ?= $(ESP_LIBS)/Wire \
 # Esp8266 Arduino git location
 ESP_ROOT ?= $(HOME)/esp8266
 # Output directory
-BUILD_ROOT ?= /tmp/$(MAIN_NAME)
+BUILD_DIR ?= /tmp/$(MAIN_NAME)_$(BOARD)
 
 # Which variant to use from $(ESP_ROOT)/variants/
 INCLUDE_VARIANT ?= generic
 
-# Board definitions
-FLASH_SIZE ?= 4M
+# Board specific definitions
+BOARD ?= generic
+FLASH_DEF ?= 4M3M
 FLASH_MODE ?= dio
 FLASH_SPEED ?= 40
-FLASH_LAYOUT ?= eagle.flash.4m.ld
 
 # Upload parameters
 UPLOAD_SPEED ?= 230400
@@ -59,13 +59,10 @@ HTTP_USR ?= password
 # The area below should normally not need to be edited
 #====================================================================================
 
-MKESPARD_VERSION = 1.0.0
-
 START_TIME := $(shell perl -e "print time();")
 # Main output definitions
 MAIN_NAME = $(basename $(notdir $(SKETCH)))
-MAIN_EXE = $(BUILD_ROOT)/$(MAIN_NAME).bin
-MAIN_ELF = $(OBJ_DIR)/$(MAIN_NAME).elf
+MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
 SRC_GIT_VERSION = $(call git_description,$(dir $(SKETCH)))
 
 # esp8266 arduino directories
@@ -75,92 +72,75 @@ TOOLS_ROOT = $(ESP_ROOT)/tools
 TOOLS_BIN = $(TOOLS_ROOT)/xtensa-lx106-elf/bin
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
 
-# Directory for intermedite build files
-OBJ_DIR = $(BUILD_ROOT)/obj
+# Build file extensions
 OBJ_EXT = .o
 DEP_EXT = .d
 
-# Compiler definitions
-CC = $(TOOLS_BIN)/xtensa-lx106-elf-gcc
-CPP = $(TOOLS_BIN)/xtensa-lx106-elf-g++
-LD =  $(CC)
-AR = $(TOOLS_BIN)/xtensa-lx106-elf-ar
-ESP_TOOL = $(TOOLS_ROOT)/esptool/esptool
+# Special tool definitions
 OTA_TOOL = $(TOOLS_ROOT)/espota.py
 HTTP_TOOL = curl
-
-INCLUDE_DIRS += $(SDK_ROOT)/include $(SDK_ROOT)/lwip/include $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(OBJ_DIR)
-C_DEFINES = -D__ets__ -DICACHE_FLASH -U__STRICT_ANSI__ -DF_CPU=80000000L -DARDUINO=10605 -DARDUINO_ESP8266_ESP01 -DARDUINO_ARCH_ESP8266 -DESP8266
-C_INCLUDES = $(foreach dir,$(INCLUDE_DIRS) $(USER_INC_DIRS),-I$(dir))
-C_FLAGS ?= -c -Os -g -Wpointer-arith -Wno-implicit-function-declaration -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals -falign-functions=4 -MMD -std=gnu99 -ffunction-sections -fdata-sections
-CPP_FLAGS ?= -c -Os -g -mlongcalls -mtext-section-literals -fno-exceptions -fno-rtti -falign-functions=4 -std=c++11 -MMD -ffunction-sections -fdata-sections
-S_FLAGS ?= -c -g -x assembler-with-cpp -MMD
-LD_FLAGS ?= -g -w -Os -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static -L$(SDK_ROOT)/lib -L$(SDK_ROOT)/ld -T$(FLASH_LAYOUT) -Wl,--gc-sections -Wl,-wrap,system_restart_local -Wl,-wrap,register_chipv6_phy
-LD_STD_LIBS ?= -lm -lgcc -lhal -lphy -lnet80211 -llwip -lwpa -lmain -lpp -lsmartconfig -lwps -lcrypto -laxtls
-# stdc++ used in later versions of esp8266 Arduino
-LD_STD_CPP = lstdc++
-ifneq ($(shell grep $(LD_STD_CPP) $(ESP_ROOT)/platform.txt),)
-	LD_STD_LIBS += -$(LD_STD_CPP)
-endif
 
 # Core source files
 CORE_DIR = $(ESP_ROOT)/cores/esp8266
 CORE_SRC = $(shell find $(CORE_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp")
-CORE_OBJ = $(patsubst %,$(OBJ_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
-CORE_LIB = $(OBJ_DIR)/core.ar
+CORE_OBJ = $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
+CORE_LIB = $(BUILD_DIR)/arduino.ar
 
 # User defined compilation units
 USER_INC = $(SKETCH) $(shell find $(LIBS) -name "*.h")
 USER_SRC = $(SKETCH) $(shell find $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
 # Object file suffix seems to be significant for the linker...
-USER_OBJ = $(subst .ino,.cpp,$(patsubst %,$(OBJ_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
+USER_OBJ = $(subst .ino,.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS = $(sort $(dir $(USER_SRC)))
 USER_INC_DIRS = $(sort $(dir $(USER_INC)))
 
+# Compilation directories and path
+INCLUDE_DIRS += $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(BUILD_DIR)
+C_INCLUDES := $(foreach dir,$(INCLUDE_DIRS) $(USER_INC_DIRS),-I$(dir))
 VPATH += $(shell find $(CORE_DIR) -type d) $(USER_DIRS)
 
 # Automatically generated build information data
-# Makes the build date and git descriptions at the actual build
-# event available as string constants in the program
-BUILD_INFO_H = $(OBJ_DIR)/buildinfo.h
-BUILD_INFO_CPP = $(OBJ_DIR)/buildinfo.cpp
+# Makes the build date and git descriptions at the actual build event available as string constants in the program
+BUILD_INFO_H = $(BUILD_DIR)/buildinfo.h
+BUILD_INFO_CPP = $(BUILD_DIR)/buildinfo.cpp
 BUILD_INFO_OBJ = $(BUILD_INFO_CPP)$(OBJ_EXT)
 
-$(BUILD_INFO_H): | $(OBJ_DIR)
+$(BUILD_INFO_H): | $(BUILD_DIR)
 	echo "typedef struct { const char *date, *time, *src_version, *env_version;} _tBuildInfo; extern _tBuildInfo _BuildInfo;" >$@
 
 # Utility functions
 git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null)
 time_string = $(shell perl -e 'use POSIX qw(strftime); print strftime($(1), localtime());')
-MEM_USAGE = \
-  'while (<>) { \
-      $$r += $$1 if /^\.(?:data|rodata|bss)\s+(\d+)/;\
-		  $$f += $$1 if /^\.(?:irom0\.text|text|data|rodata)\s+(\d+)/;\
-	 }\
-	 print "\nMemory usage\n";\
-	 print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "Ram:", $$r, "Flash:", $$f);'
+
+# The actual build commands are to be extracted from the Arduino description files
+ARDUINO_MK = $(BUILD_DIR)/arduino.mk
+ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt")
+$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
+	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) $(ARDUINO_DESC) >$(ARDUINO_MK)
+
+-include $(ARDUINO_MK)
 
 # Build rules
-$(OBJ_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H)
+$(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H) $(ARDUINO_MK)
 	echo  $(<F)
-	$(CPP) $(C_DEFINES) $(C_INCLUDES) $(CPP_FLAGS) $< -o $@
+	$(CPP_COM) $(CPP_EXTRA) $< -o $@
 
-$(OBJ_DIR)/%.cpp$(OBJ_EXT): %.ino $(BUILD_INFO_H)
+$(BUILD_DIR)/%.cpp$(OBJ_EXT): %.ino $(BUILD_INFO_H) $(ARDUINO_MK)
 	echo  $(<F)
-	$(CPP) -x c++ -include $(CORE_DIR)/Arduino.h $(C_DEFINES) $(C_INCLUDES) $(CPP_FLAGS) $< -o $@
+	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
 
-$(OBJ_DIR)/%.c$(OBJ_EXT): %.c
+$(BUILD_DIR)/%.c$(OBJ_EXT): %.c $(ARDUINO_MK)
 	echo  $(<F)
-	$(CC) $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) $< -o $@
+	$(C_COM) $(C_EXTRA) $< -o $@
 
-$(OBJ_DIR)/%.S$(OBJ_EXT): %.S
+$(BUILD_DIR)/%.S$(OBJ_EXT): %.S $(ARDUINO_MK)
 	echo  $(<F)
-	$(CC) $(C_DEFINES) $(C_INCLUDES) $(S_FLAGS) $< -o $@
+	$(S_COM) $(S_EXTRA) $< -o $@
 
 $(CORE_LIB): $(CORE_OBJ)
 	echo  Creating core archive
 	rm -f $@
-	$(AR) cru $@  $^
+	$(AR_COM) $^
 
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
@@ -170,14 +150,14 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	echo "  Versions: $(SRC_GIT_VERSION), $(ESP_GIT_VERSION)"
 	echo 	'#include <buildinfo.h>' >$(BUILD_INFO_CPP)
 	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_GIT_VERSION)"};' >>$(BUILD_INFO_CPP)
-	$(CPP) $(C_DEFINES) $(C_INCLUDES) $(CPP_FLAGS) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
-	$(LD) $(LD_FLAGS) -Wl,--start-group $^ $(BUILD_INFO_OBJ) $(LD_STD_LIBS) -Wl,--end-group -L$(OBJ_DIR) -o $(MAIN_ELF)
-	$(ESP_TOOL) -eo $(ESP_ROOT)/bootloaders/eboot/eboot.elf -bo $@ -bm $(FLASH_MODE) -bf $(FLASH_SPEED) -bz $(FLASH_SIZE) -bs .text -bp 4096 -ec -eo $(MAIN_ELF) -bs .irom0.text -bs .text -bs .data -bs .rodata -bc -ec
-	$(TOOLS_BIN)/xtensa-lx106-elf-size -A $(MAIN_ELF) | perl -e $(MEM_USAGE)
+	$(CPP_COM) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
+	$(LD_COM)
+	$(ELF2BIN_COM)
+	$(SIZE_COM) | perl -e "$$MEM_USAGE"
 	perl -e 'print "Build complete. Elapsed time: ", time()-$(START_TIME),  " seconds\n\n"'
 
 upload: all
-	$(ESP_TOOL) $(UPLOAD_VERB) -cd $(UPLOAD_RESET) -cb $(UPLOAD_SPEED) -cp $(UPLOAD_PORT) -ca 0x00000 -cf $(MAIN_EXE)
+	$(UPLOAD_COM)
 
 ota: all
 	$(OTA_TOOL) -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
@@ -187,22 +167,103 @@ http: all
 	echo "\n"
 
 clean:
-	echo Removing all intermediate build files...
-	rm  -f $(OBJ_DIR)/*
+	echo Removing all build files...
+	rm  -rf $(BUILD_DIR)/*
 
-$(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 .PHONY: all
-all: $(OBJ_DIR) $(BUILD_INFO_H) $(MAIN_EXE)
+all: $(BUILD_DIR) $(ARDUINO_MK) $(BUILD_INFO_H) prebuild $(MAIN_EXE)
 
+prebuild:
+ifdef USE_PREBUILD
+	$(PREBUILD_COM)
+endif
 
 # Include all available dependencies
--include $(wildcard $(OBJ_DIR)/*$(DEP_EXT))
+-include $(wildcard $(BUILD_DIR)/*$(DEP_EXT))
 
 .DEFAULT_GOAL = all
 
-ifndef VERBOSE
-# Set silent mode as default
-MAKEFLAGS += --silent
+ifndef SINGLE_THREAD
+  # Use multithreaded builds by default
+  MAKEFLAGS += -j
 endif
+
+ifndef VERBOSE
+  # Set silent mode as default
+  MAKEFLAGS += --silent
+endif
+
+# Inline Perl scripts
+
+# Parse Arduino build commands from the descriptions
+define PARSE_ARDUINO
+my $$board = shift;
+my $$flashSize = shift;
+my %v;
+
+$$v{'runtime.platform.path'} = '$$(ESP_ROOT)';
+$$v{'includes'} = '$$(C_INCLUDES)';
+$$v{'runtime.ide.version'} = '10605';
+$$v{'build.arch'} = 'ESP8266';
+$$v{'build.project_name'} = '$$(MAIN_NAME)';
+$$v{'build.path'} = '$$(BUILD_DIR)';
+$$v{'build.flash_freq'} = '$$(FLASH_SPEED)';
+$$v{'object_files'} = '$$^ $$(BUILD_INFO_OBJ)';
+
+foreach my $$fn (@ARGV) {
+   open($$f, $$fn) || die "Failed to open: $$fn\n";
+   while (<$$f>) {
+      next unless /(\w[\w\-\.]+)=(.*)/;
+      my ($$key, $$val) =($$1, $$2);
+      $$key =~ s/$$board\.(build)/$$1/;
+      $$key =~ s/$$board\.menu\.FlashSize\.$$flashSize\.//;
+      $$key =~ s/^tools\.esptool\.//;
+      $$v{$$key} = $$val;
+   }
+   close($$f);
+}
+die "* Uknown board $$board\n" unless defined $$v{"$$board.name"};
+$$v{'build.flash_mode'} = '$$(FLASH_MODE)';
+$$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
+$$v{'upload.resetmethod'} = '$$(UPLOAD_RESET)';
+$$v{'upload.speed'} = '$$(UPLOAD_SPEED)';
+$$v{'serial.port'} = '$$(UPLOAD_PORT)';
+
+foreach my $$key (sort keys %v) {
+   while ($$v{$$key} =~/\{/) {
+      $$v{$$key} =~ s/\{([\w\-\.]+)\}/$$v{$$1}/;
+      $$v{$$key} =~ s/""//;
+   }
+   $$v{$$key} =~ s/ -o $$//;
+   $$v{$$key} =~ s/(-D\w+=)"([^"]+)"/$$1\\"$$2\\"/g;
+}
+
+print "C_COM=$$v{'recipe.c.o.pattern'}\n";
+print "CPP_COM=$$v{'recipe.cpp.o.pattern'}\n";
+print "S_COM=$$v{'recipe.S.o.pattern'}\n";
+print "AR_COM=$$v{'recipe.ar.pattern'}\n";
+print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
+print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
+print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
+print "UPLOAD_COM=$$v{'upload.pattern'}\n";
+my $$val = $$v{'recipe.hooks.core.prebuild.1.pattern'};
+$$val =~ s/bash -c "(.+)"/$$1/;
+$$val =~ s/(#define .+0x)(\`)/"\\$$1\"$$2/;
+$$val =~ s/(\\)//;
+print "PREBUILD_COM=$$val\n";
+endef
+export PARSE_ARDUINO
+
+# Convert memory information
+define MEM_USAGE
+while (<>) {
+  $$r += $$1 if /^\.(?:data|rodata|bss)\s+(\d+)/;
+  $$f += $$1 if /^\.(?:irom0\.text|text|data|rodata)\s+(\d+)/;
+}
+print "\nMemory usage\n";
+print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "Ram:", $$r, "Flash:", $$f);
+endef
+export MEM_USAGE
