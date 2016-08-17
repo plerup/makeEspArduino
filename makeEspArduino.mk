@@ -14,23 +14,22 @@
 #====================================================================================
 
 #====================================================================================
-# User editable area
+# Project specfic values
 #====================================================================================
 
-#=== Project specific definitions: sketch and list of needed libraries
-SKETCH ?= $(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino
-LIBS ?= $(ESP_LIBS)/Wire \
-        $(ESP_LIBS)/ESP8266WiFi \
-        $(ESP_LIBS)/ESP8266mDNS \
-        $(ESP_LIBS)/ESP8266WebServer
+# Include possible project makefile. This can be used to override the defaults below
+-include $(firstword $(PROJ_CONF) $(dir $(SKETCH))config.mk)
 
-# Esp8266 Arduino git location
-ESP_ROOT ?= $(HOME)/esp8266
-# Output directory
-BUILD_DIR ?= /tmp/$(MAIN_NAME)_$(BOARD)
+#=== Default values
 
-# Which variant to use from $(ESP_ROOT)/variants/
-INCLUDE_VARIANT ?= generic
+# Main source file (sketch).
+# If this variable is not specified the first sketch in current directory will be used.
+# If none is found there, a demo example will be used instead.
+SKETCH ?=
+
+# Includes in the sketch file of libraries from within the ESP8266 Arduino directories can be automatically
+# detected but if this is not enough, define this variable with all libraries or directories needed.
+LIBS ?=
 
 # Board specific definitions
 BOARD ?= generic
@@ -45,32 +44,60 @@ UPLOAD_VERB ?= -v
 UPLOAD_RESET ?= ck
 
 # OTA parameters
-ESP_ADDR ?= ESP_DA6ABC
+ESP_ADDR ?= ESP_123456
 ESP_PORT ?= 8266
 ESP_PWD ?= 123
 
 # HTTP update parameters
-HTTP_ADDR ?= ESP_DA6ABC
+HTTP_ADDR ?= ESP_123456
 HTTP_URI ?= /update
 HTTP_PWD ?= user
 HTTP_USR ?= password
 
+# Output directory
+BUILD_DIR ?= /tmp/mkESP/$(MAIN_NAME)_$(BOARD)
+
+# Which include files to use from $(ESP_ROOT)/variants/
+INCLUDE_VARIANT ?= generic
+
 #====================================================================================
-# The area below should normally not need to be edited
+# Standard build logic and values
 #====================================================================================
 
 START_TIME := $(shell perl -e "print time();")
-# Main output definitions
-MAIN_NAME = $(basename $(notdir $(SKETCH)))
-MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
-SRC_GIT_VERSION = $(call git_description,$(dir $(SKETCH)))
 
-# esp8266 arduino directories
-ESP_GIT_VERSION = $(call git_description,$(ESP_ROOT))
+# ESP8266 Arduino directories
+ifndef ESP_ROOT
+  # Location not defined, find and use the version in the Arduino IDE installation
+  ARDUINO_DIR = $(HOME)/.arduino15/packages/esp8266
+  ESP_ROOT := $(lastword $(wildcard $(ARDUINO_DIR)/hardware/esp8266/*))
+  ifeq ($(ESP_ROOT),)
+    $(error No installed version of ESP8266 Arduino found)
+  endif
+  ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
+  # Find used version of compiler and tools
+  COMP_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/xtensa-lx106-elf-gcc/*))
+  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/esptool/*))
+else
+  # Location defined, assume it is git clone
+  ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
+endif
 ESP_LIBS = $(ESP_ROOT)/libraries
-TOOLS_ROOT = $(ESP_ROOT)/tools
-TOOLS_BIN = $(TOOLS_ROOT)/xtensa-lx106-elf/bin
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
+TOOLS_ROOT = $(ESP_ROOT)/tools
+
+# Search for sketch if not defined
+SKETCH := $(realpath $(firstword  $(SKETCH) \
+                         $(wildcard *.ino) \
+                         $(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino \
+                       ) \
+            )
+ifeq ($(wildcard $(SKETCH)),)
+  $(error Sketch $(SKETCH) not found)
+endif
+# Main output definitions
+MAIN_NAME := $(basename $(notdir $(SKETCH)))
+MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
 
 # Build file extensions
 OBJ_EXT = .o
@@ -82,17 +109,27 @@ HTTP_TOOL = curl
 
 # Core source files
 CORE_DIR = $(ESP_ROOT)/cores/esp8266
-CORE_SRC = $(shell find $(CORE_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp")
-CORE_OBJ = $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
+CORE_SRC := $(shell find $(CORE_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp")
+CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
 
-# User defined compilation units
-USER_INC = $(SKETCH) $(shell find $(LIBS) -name "*.h")
-USER_SRC = $(SKETCH) $(shell find $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
+# User defined compilation units and directories
+ifeq ($(LIBS),)
+  # Automatically find directories with header files used by the sketch
+  LIBS := $(shell perl -e 'use File::Find;$$d = shift;while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {print $$File::Find::dir," " if $$f{$$_}}, $$d);'  $(ESP_LIBS) $(SKETCH))
+  ifeq ($(LIBS),)
+    # No dependencies found
+    LIBS = /dev/null
+  endif
+endif
+
+SKETCH_DIR = $(dir $(SKETCH))
+USER_INC := $(shell find $(SKETCH_DIR) $(LIBS) -name "*.h")
+USER_SRC := $(SKETCH) $(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
 # Object file suffix seems to be significant for the linker...
-USER_OBJ = $(subst .ino,.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
-USER_DIRS = $(sort $(dir $(USER_SRC)))
-USER_INC_DIRS = $(sort $(dir $(USER_INC)))
+USER_OBJ := $(subst .ino,.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
+USER_DIRS := $(sort $(dir $(USER_SRC)))
+USER_INC_DIRS := $(sort $(dir $(USER_INC)))
 
 # Compilation directories and path
 INCLUDE_DIRS += $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(BUILD_DIR)
@@ -109,8 +146,8 @@ $(BUILD_INFO_H): | $(BUILD_DIR)
 	echo "typedef struct { const char *date, *time, *src_version, *env_version;} _tBuildInfo; extern _tBuildInfo _BuildInfo;" >$@
 
 # Utility functions
-git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null)
-time_string = $(shell perl -e 'use POSIX qw(strftime); print strftime($(1), localtime());')
+git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null || echo Unknown)
+time_string = $(shell date +$(1))
 
 # The actual build commands are to be extracted from the Arduino description files
 ARDUINO_MK = $(BUILD_DIR)/arduino.mk
@@ -144,12 +181,13 @@ $(CORE_LIB): $(CORE_OBJ)
 
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
+SRC_GIT_VERSION := $(call git_description,$(dir $(SKETCH)))
 
 $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	echo Linking $(MAIN_EXE)
-	echo "  Versions: $(SRC_GIT_VERSION), $(ESP_GIT_VERSION)"
+	echo "  Versions: $(SRC_GIT_VERSION), $(ESP_ARDUINO_VERSION)"
 	echo 	'#include <buildinfo.h>' >$(BUILD_INFO_CPP)
-	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_GIT_VERSION)"};' >>$(BUILD_INFO_CPP)
+	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_ARDUINO_VERSION)"};' >>$(BUILD_INFO_CPP)
 	$(CPP_COM) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
 	$(LD_COM)
 	$(ELF2BIN_COM)
@@ -163,12 +201,16 @@ ota: all
 	$(OTA_TOOL) -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
 
 http: all
-	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD)  http://$(HTTP_ADDR)$(HTTP_URI)
+	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
 clean:
 	echo Removing all build files...
 	rm  -rf $(BUILD_DIR)/*
+
+list_lib:
+	echo === User specific libraries ===
+	perl -e 'foreach (@ARGV) {print "$$_\n"}' "* Include directories:" $(USER_INC_DIRS)  "* Library source files:" $(USER_SRC)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -212,6 +254,8 @@ $$v{'build.project_name'} = '$$(MAIN_NAME)';
 $$v{'build.path'} = '$$(BUILD_DIR)';
 $$v{'build.flash_freq'} = '$$(FLASH_SPEED)';
 $$v{'object_files'} = '$$^ $$(BUILD_INFO_OBJ)';
+$$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} = '$$(COMP_PATH)';
+$$v{'runtime.tools.esptool.path'} = '$$(ESPTOOL_PATH)';
 
 foreach my $$fn (@ARGV) {
    open($$f, $$fn) || die "Failed to open: $$fn\n";
