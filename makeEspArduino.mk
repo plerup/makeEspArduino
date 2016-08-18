@@ -33,6 +33,7 @@ LIBS ?=
 
 # Board specific definitions
 BOARD ?= generic
+F_CPU ?= 80000000L
 FLASH_DEF ?= 4M3M
 FLASH_MODE ?= dio
 FLASH_SPEED ?= 40
@@ -271,6 +272,7 @@ foreach my $$fn (@ARGV) {
 }
 die "* Uknown board $$board\n" unless defined $$v{"$$board.name"};
 $$v{'build.flash_mode'} = '$$(FLASH_MODE)';
+$$v{'build.f_cpu'} = '$$(F_CPU)';
 $$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
 $$v{'upload.resetmethod'} = '$$(UPLOAD_RESET)';
 $$v{'upload.speed'} = '$$(UPLOAD_SPEED)';
