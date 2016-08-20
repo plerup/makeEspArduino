@@ -39,10 +39,8 @@ FLASH_MODE ?= dio
 FLASH_SPEED ?= 40
 
 # Upload parameters
-UPLOAD_SPEED ?= 230400
 UPLOAD_PORT ?= /dev/ttyUSB0
 UPLOAD_VERB ?= -v
-UPLOAD_RESET ?= ck
 
 # OTA parameters
 ESP_ADDR ?= ESP_123456
@@ -263,18 +261,21 @@ foreach my $$fn (@ARGV) {
    while (<$$f>) {
       next unless /(\w[\w\-\.]+)=(.*)/;
       my ($$key, $$val) =($$1, $$2);
-      $$key =~ s/$$board\.(build)/$$1/;
+		$$board_defined = 1 if $$key eq "$$board.name";
       $$key =~ s/$$board\.menu\.FlashSize\.$$flashSize\.//;
+		$$key =~ s/^$$board\.//;
       $$key =~ s/^tools\.esptool\.//;
       $$v{$$key} = $$val;
    }
    close($$f);
 }
-die "* Uknown board $$board\n" unless defined $$v{"$$board.name"};
+die "* Uknown board $$board\n" unless $$board_defined;
 $$v{'build.flash_mode'} = '$$(FLASH_MODE)';
 $$v{'build.f_cpu'} = '$$(F_CPU)';
 $$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
+print "UPLOAD_RESET ?= $$v{'upload.resetmethod'}\n";
 $$v{'upload.resetmethod'} = '$$(UPLOAD_RESET)';
+print "UPLOAD_SPEED ?= $$v{'upload.speed'}\n";
 $$v{'upload.speed'} = '$$(UPLOAD_SPEED)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 

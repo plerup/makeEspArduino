@@ -126,7 +126,7 @@ There are some other important variables which corresponds to the settings which
 | :------------- | :------------- |
 | **BOARD**  | The type of ESP8266 board you are using.<br>Default: generic.  |
 | **FLASH_DEF**  | Flash memory configuration.<br>Default: 4M3M e.g. 4 MB flash with 3 MB SPIFFS.  |
-| **UPLOAD_SPEED**  | Upload serial baudrate.<br>Default: 230400.  |
+| **UPLOAD_SPEED**  | Upload serial baudrate.<br>Default is taken from boards.txt.  |
 | **UPLOAD_PORT**  | Upload serial port.<br>Default: /dev/ttyUSB0.  |
 
 There are some other variables as well, check the first section in the makefile for more information about this.
