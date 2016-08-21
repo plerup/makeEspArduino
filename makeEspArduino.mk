@@ -68,7 +68,14 @@ START_TIME := $(shell perl -e "print time();")
 # ESP8266 Arduino directories
 ifndef ESP_ROOT
   # Location not defined, find and use the version in the Arduino IDE installation
-  ARDUINO_DIR = $(HOME)/.arduino15/packages/esp8266
+  OS ?= $(shell uname -s)
+  ifeq ($(OS), Windows_NT)
+    ARDUINO_DIR = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15/packages/esp8266)
+  else ifeq ($(OS), Darwin)
+    ARDUINO_DIR = $(HOME)/Library/Arduino15/packages/esp8266
+  else
+    ARDUINO_DIR = $(HOME)/.arduino15/packages/esp8266
+  endif
   ESP_ROOT := $(lastword $(wildcard $(ARDUINO_DIR)/hardware/esp8266/*))
   ifeq ($(ESP_ROOT),)
     $(error No installed version of ESP8266 Arduino found)
@@ -97,6 +104,12 @@ endif
 # Main output definitions
 MAIN_NAME := $(basename $(notdir $(SKETCH)))
 MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
+
+ifeq ($(OS), Windows_NT)
+  # Adjust critical paths
+  BUILD_DIR := $(shell cygpath -m $(BUILD_DIR))
+  SKETCH := $(shell cygpath -m $(SKETCH))
+endif
 
 # Build file extensions
 OBJ_EXT = .o

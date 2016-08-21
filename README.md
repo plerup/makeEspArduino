@@ -26,7 +26,7 @@ Rules for building the firmware as well as upload it to the ESP8266 are provided
 The intension is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line
 or in separate companion makefiles.
 
-The makefile is designed for GNU make and Linux, may work on CygWin as well.
+The makefile can be used on Linux, Mac OS and Microsoft Windows (Cygwin).
 
 The actual build commands (compile, link etc.) are extracted from the Arduino description files (platform.txt etc.).
 
