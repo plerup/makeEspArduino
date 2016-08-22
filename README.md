@@ -23,6 +23,8 @@ This can be used by the project source files to provide stringent version inform
 
 Rules for building the firmware as well as upload it to the ESP8266 are provided.
 
+It is also possible to let the makefile generate and upload a complete SPIFFS file system based on an arbitrary directory of files.
+
 The intension is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line
 or in separate companion makefiles.
 
@@ -97,8 +99,6 @@ Explicit naming of the sketch:
     # Or like this
     espmake SKETCH="\$(ESP_ROOT)/libraries/Ticker/examples/TickerBasic/TickerBasic.ino"
 
-
-
 #### Advanced usage
 
 The makefile has several variables which control the build. There are different ways to change the defaults of these variables.
@@ -162,6 +162,19 @@ If you want to use another name for your makefile you can specify this via the v
 It is of course also always possible to control the variable values in the makefile by defining them as environment variables in the shell. Exmaple:
 
     export UPLOAD_PORT=/dev/ttyUSB2
+
+#### Building a file system
+
+There are also rules in the makefile which can be used for building and uploading a complete SPIFFS file system to the ESP. This is basically the same functionality
+as the one available in the Arduino IDE, https://github.com/esp8266/Arduino/blob/master/doc/filesystem.md#uploading-files-to-file-system
+
+The file system content is made up of everything within a directory specified via the variable **FS_DIR**. By default this variable is set to a subdirectory named
+**data** in the sketch directory.
+
+Use the rule **upload_fs** to generate a file system image and upload it to the ESP.
+
+All the settings for the file system are taken from the selected board's configuration.
+
 
 #### Additional control options
 

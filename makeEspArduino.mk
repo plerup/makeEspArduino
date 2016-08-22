@@ -56,6 +56,9 @@ HTTP_USR ?= password
 # Output directory
 BUILD_DIR ?= /tmp/mkESP/$(MAIN_NAME)_$(BOARD)
 
+# File system source directory
+FS_DIR ?= $(dir $(SKETCH))data
+
 # Which include files to use from $(ESP_ROOT)/variants/
 INCLUDE_VARIANT ?= generic
 
@@ -84,6 +87,7 @@ ifndef ESP_ROOT
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/xtensa-lx106-elf-gcc/*))
   ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/esptool/*))
+  MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/mkspiffs/*))
 else
   # Location defined, assume it is git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
@@ -104,6 +108,7 @@ endif
 # Main output definitions
 MAIN_NAME := $(basename $(notdir $(SKETCH)))
 MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
+FS_IMAGE = $(BUILD_DIR)/FS.spiffs
 
 ifeq ($(OS), Windows_NT)
   # Adjust critical paths
@@ -216,6 +221,18 @@ http: all
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
+$(FS_IMAGE): $(wildcard $(FS_DIR)/*)
+ifeq ($(wildcard $(FS_DIR)),)
+  $(error File system directory $(FS_DIR) not found)
+endif
+	echo Generating filesystem image...
+	$(MKSPIFFS_COM)
+
+fs: $(FS_IMAGE)
+
+upload_fs: $(FS_IMAGE)
+	$(FS_UPLOAD_COM)
+
 clean:
 	echo Removing all build files...
 	rm  -rf $(BUILD_DIR)/*
@@ -268,6 +285,7 @@ $$v{'build.flash_freq'} = '$$(FLASH_SPEED)';
 $$v{'object_files'} = '$$^ $$(BUILD_INFO_OBJ)';
 $$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} = '$$(COMP_PATH)';
 $$v{'runtime.tools.esptool.path'} = '$$(ESPTOOL_PATH)';
+$$v{'runtime.tools.mkspiffs.path'} = '$$(MKSPIFFS_PATH)';
 
 foreach my $$fn (@ARGV) {
    open($$f, $$fn) || die "Failed to open: $$fn\n";
@@ -308,7 +326,12 @@ print "AR_COM=$$v{'recipe.ar.pattern'}\n";
 print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
 print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
+my $$flash_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
+print "MKSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$flash_size -c \$$(FS_DIR) \$$(FS_IMAGE)\n";
 print "UPLOAD_COM=$$v{'upload.pattern'}\n";
+my $$fs_upload_com = $$v{'upload.pattern'};
+$$fs_upload_com =~ s/(.+ -ca) .+/$$1 $$v{'build.spiffs_start'} -cf \$$(FS_IMAGE)/;
+print "FS_UPLOAD_COM=$$fs_upload_com\n";
 my $$val = $$v{'recipe.hooks.core.prebuild.1.pattern'};
 $$val =~ s/bash -c "(.+)"/$$1/;
 $$val =~ s/(#define .+0x)(\`)/"\\$$1\"$$2/;
