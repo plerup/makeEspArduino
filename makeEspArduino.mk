@@ -222,9 +222,6 @@ http: all
 	echo "\n"
 
 $(FS_IMAGE): $(wildcard $(FS_DIR)/*)
-ifeq ($(wildcard $(FS_DIR)),)
-  $(error File system directory $(FS_DIR) not found)
-endif
 	echo Generating filesystem image...
 	$(MKSPIFFS_COM)
 
