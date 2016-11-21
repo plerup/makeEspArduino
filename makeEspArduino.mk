@@ -156,7 +156,7 @@ VPATH += $(shell find $(CORE_DIR) -type d) $(USER_DIRS)
 # Automatically generated build information data
 # Makes the build date and git descriptions at the actual build event available as string constants in the program
 BUILD_INFO_H = $(BUILD_DIR)/buildinfo.h
-BUILD_INFO_CPP = $(BUILD_DIR)/buildinfo.cpp
+BUILD_INFO_CPP = $(BUILD_DIR)/buildinfo.c++
 BUILD_INFO_OBJ = $(BUILD_INFO_CPP)$(OBJ_EXT)
 
 $(BUILD_INFO_H): | $(BUILD_DIR)
@@ -211,7 +211,7 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	$(SIZE_COM) | perl -e "$$MEM_USAGE"
 	perl -e 'print "Build complete. Elapsed time: ", time()-$(START_TIME),  " seconds\n\n"'
 
-upload: all
+upload flash: all
 	$(UPLOAD_COM)
 
 ota: all
