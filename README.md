@@ -159,7 +159,7 @@ If you want to use another name for your makefile you can specify this via the v
 
     UPLOAD_SPEED = 115200
 
-It is of course also always possible to control the variable values in the makefile by defining them as environment variables in the shell. Exmaple:
+It is of course also always possible to control the variable values in the makefile by defining them as environment variables in the shell. Example:
 
     export UPLOAD_PORT=/dev/ttyUSB2
 
@@ -174,6 +174,18 @@ The file system content is made up of everything within a directory specified vi
 Use the rule **upload_fs** to generate a file system image and upload it to the ESP.
 
 All the settings for the file system are taken from the selected board's configuration.
+
+#### Flash I/O operations
+
+The makefile has rules for dumping and restoring the whole flash memory contents to and from a file. This can be convenient for saving a specific state or software for which no source code is available.
+
+This functionality is achieved by using "esptool.py". This tool is not part of ESP8266/Arduino and subsequently must be installed separately from: https://github.com/espressif/esptool
+
+The rules are named **dump_flash** and **restore_flash**. The name of the output/input file is controlled by the variable **FLASH_FILE**. The default value for this is "esp_flash.bin". All required parameters for the operations are taken from the variables mentioned above for flash size, serial port and speed etc.
+
+Example:
+
+    espmake dump_flash FLASH_FILE=my_flash.bin
 
 
 #### Additional control options

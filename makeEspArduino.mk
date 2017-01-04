@@ -9,7 +9,7 @@
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
-# Copyright (c) 2016 Peter Lerup. All rights reserved.
+# Copyright (c) 2016-2017 Peter Lerup. All rights reserved.
 #
 #====================================================================================
 
@@ -62,6 +62,9 @@ FS_DIR ?= $(dir $(SKETCH))data
 # Which include files to use from $(ESP_ROOT)/variants/
 INCLUDE_VARIANT ?= generic
 
+# Possible specific bootloader
+BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
+
 #====================================================================================
 # Standard build logic and values
 #====================================================================================
@@ -95,6 +98,8 @@ endif
 ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
 TOOLS_ROOT = $(ESP_ROOT)/tools
+
+ESPTOOL_PY := esptool.py --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
 
 # Search for sketch if not defined
 SKETCH := $(realpath $(firstword  $(SKETCH) \
@@ -222,16 +227,25 @@ http: all
 	echo "\n"
 
 $(FS_IMAGE): $(wildcard $(FS_DIR)/*)
-	echo Generating filesystem image...
+	echo Generating filesystem image: $(FS_IMAGE)
 	$(MKSPIFFS_COM)
 
 fs: $(FS_IMAGE)
 
-upload_fs: $(FS_IMAGE)
+upload_fs flash_fs: $(FS_IMAGE)
 	$(FS_UPLOAD_COM)
 
+FLASH_FILE ?= esp_flash.bin
+dump_flash:
+	echo Dumping flash memory to file: $(FLASH_FILE)
+	$(ESPTOOL_PY) read_flash 0 $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";$$mem_size=$$1*1024;$$mem_size*=1024 if $$2 eq "M";print $$mem_size;' $(FLASH_DEF)) $(FLASH_FILE)
+
+restore_flash:
+	echo Restoring flash memory from file: $(FLASH_FILE)
+	$(ESPTOOL_PY) write_flash -fs $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";print ($$2 eq "K" ? 2 : $$1*8);' $(FLASH_DEF))m -fm $(FLASH_MODE) -ff $(FLASH_SPEED)m 0 $(FLASH_FILE)
+
 clean:
-	echo Removing all build files...
+	echo Removing all build files
 	rm  -rf $(BUILD_DIR)/*
 
 list_lib:
@@ -306,6 +320,7 @@ $$v{'upload.resetmethod'} = '$$(UPLOAD_RESET)';
 print "UPLOAD_SPEED ?= $$v{'upload.speed'}\n";
 $$v{'upload.speed'} = '$$(UPLOAD_SPEED)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
+$$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
 
 foreach my $$key (sort keys %v) {
    while ($$v{$$key} =~/\{/) {
