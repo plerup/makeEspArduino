@@ -1,7 +1,7 @@
 #====================================================================================
 # makeESPArduino
 #
-# A makefile for ESP8286 Arduino projects.
+# A makefile for ESP8286 and ESP32 Arduino projects.
 # Edit the contents of this file to suit your project
 # or just include it and override the applicable macros.
 #
@@ -20,25 +20,14 @@
 # Include possible project makefile. This can be used to override the defaults below
 -include $(firstword $(PROJ_CONF) $(dir $(SKETCH))config.mk)
 
-#=== Default values
+#=== Default values not available in the Arduino configuration files
 
-# Main source file (sketch).
-# If this variable is not specified the first sketch in current directory will be used.
-# If none is found there, a demo example will be used instead.
-SKETCH ?=
+CHIP ?= esp8266
 
-# Includes in the sketch file of libraries from within the ESP8266 Arduino directories can be automatically
-# detected but if this is not enough, define this variable with all libraries or directories needed.
-LIBS ?=
+# Set chip specific default board unless specified
+BOARD ?= $(if $(filter $(CHIP), esp32),esp32,generic)
 
-# Board specific definitions
-BOARD ?= generic
-F_CPU ?= 80000000L
-FLASH_DEF ?= 4M3M
-FLASH_MODE ?= dio
-FLASH_SPEED ?= 40
-
-# Upload parameters
+# Serial flashing parameters
 UPLOAD_PORT ?= /dev/ttyUSB0
 UPLOAD_VERB ?= -v
 
@@ -59,10 +48,7 @@ BUILD_DIR ?= /tmp/mkESP/$(MAIN_NAME)_$(BOARD)
 # File system source directory
 FS_DIR ?= $(dir $(SKETCH))data
 
-# Which include files to use from $(ESP_ROOT)/variants/
-INCLUDE_VARIANT ?= generic
-
-# Possible specific bootloader
+# Bootloader
 BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
 
 #====================================================================================
@@ -71,20 +57,24 @@ BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
 
 START_TIME := $(shell perl -e "print time();")
 
-# ESP8266 Arduino directories
+# Utility functions
+git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null || echo Unknown)
+time_string = $(shell date +$(1))
+
+# ESP Arduino directories
 ifndef ESP_ROOT
-  # Location not defined, find and use the version in the Arduino IDE installation
+  # Location not defined, find and use possible version in the Arduino IDE installation
   OS ?= $(shell uname -s)
   ifeq ($(OS), Windows_NT)
-    ARDUINO_DIR = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15/packages/esp8266)
+    ARDUINO_DIR = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15/packages/$(CHIP))
   else ifeq ($(OS), Darwin)
-    ARDUINO_DIR = $(HOME)/Library/Arduino15/packages/esp8266
+    ARDUINO_DIR = $(HOME)/Library/Arduino15/packages/$(CHIP)
   else
-    ARDUINO_DIR = $(HOME)/.arduino15/packages/esp8266
+    ARDUINO_DIR = $(HOME)/.arduino15/packages/$(CHIP)
   endif
-  ESP_ROOT := $(lastword $(wildcard $(ARDUINO_DIR)/hardware/esp8266/*))
+  ESP_ROOT := $(lastword $(wildcard $(ARDUINO_DIR)/hardware/$(CHIP)/*))
   ifeq ($(ESP_ROOT),)
-    $(error No installed version of ESP8266 Arduino found)
+    $(error No installed version of $(CHIP) Arduino found)
   endif
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
@@ -92,24 +82,30 @@ ifndef ESP_ROOT
   ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/esptool/*))
   MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/mkspiffs/*))
 else
-  # Location defined, assume it is git clone
+  # Location defined, assume it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
 endif
 ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
 TOOLS_ROOT = $(ESP_ROOT)/tools
 
-ESPTOOL_PY := esptool.py --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
+ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
+  $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
+endif
+
+ESPTOOL_PY = esptool.py --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
 
 # Search for sketch if not defined
-SKETCH := $(realpath $(firstword  $(SKETCH) \
-                         $(wildcard *.ino) \
-                         $(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino \
-                       ) \
-            )
+SKETCH := $(realpath $(firstword \
+  $(SKETCH) \
+  $(wildcard *.ino) \
+  $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino) \
+  ) \
+)
 ifeq ($(wildcard $(SKETCH)),)
   $(error Sketch $(SKETCH) not found)
 endif
+
 # Main output definitions
 MAIN_NAME := $(basename $(notdir $(SKETCH)))
 MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
@@ -130,7 +126,7 @@ OTA_TOOL = $(TOOLS_ROOT)/espota.py
 HTTP_TOOL = curl
 
 # Core source files
-CORE_DIR = $(ESP_ROOT)/cores/esp8266
+CORE_DIR = $(ESP_ROOT)/cores/$(CHIP)
 CORE_SRC := $(shell find $(CORE_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp")
 CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
@@ -149,9 +145,20 @@ SKETCH_DIR = $(dir $(SKETCH))
 USER_INC := $(shell find $(SKETCH_DIR) $(LIBS) -name "*.h")
 USER_SRC := $(SKETCH) $(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
 # Object file suffix seems to be significant for the linker...
-USER_OBJ := $(subst .ino,.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
+USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
 USER_INC_DIRS := $(sort $(dir $(USER_INC)))
+
+# Use first flash definition for the board as default
+FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.FlashSize\.([^\.]+)=/){ print "$$1"; exit;}} print "NA";')
+
+# The actual build commands are to be extracted from the Arduino description files
+ARDUINO_MK = $(BUILD_DIR)/arduino.mk
+ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt")
+$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
+	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) $(ARDUINO_DESC) >$(ARDUINO_MK)
+
+-include $(ARDUINO_MK)
 
 # Compilation directories and path
 INCLUDE_DIRS += $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(BUILD_DIR)
@@ -167,24 +174,12 @@ BUILD_INFO_OBJ = $(BUILD_INFO_CPP)$(OBJ_EXT)
 $(BUILD_INFO_H): | $(BUILD_DIR)
 	echo "typedef struct { const char *date, *time, *src_version, *env_version;} _tBuildInfo; extern _tBuildInfo _BuildInfo;" >$@
 
-# Utility functions
-git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null || echo Unknown)
-time_string = $(shell date +$(1))
-
-# The actual build commands are to be extracted from the Arduino description files
-ARDUINO_MK = $(BUILD_DIR)/arduino.mk
-ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt")
-$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
-	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) $(ARDUINO_DESC) >$(ARDUINO_MK)
-
--include $(ARDUINO_MK)
-
-# Build rules
+# Build rules for the different source file types
 $(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H) $(ARDUINO_MK)
 	echo  $(<F)
 	$(CPP_COM) $(CPP_EXTRA) $< -o $@
 
-$(BUILD_DIR)/%.cpp$(OBJ_EXT): %.ino $(BUILD_INFO_H) $(ARDUINO_MK)
+$(BUILD_DIR)/%_.cpp$(OBJ_EXT): %.ino $(BUILD_INFO_H) $(ARDUINO_MK)
 	echo  $(<F)
 	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
 
@@ -213,7 +208,10 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	$(CPP_COM) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
 	$(LD_COM)
 	$(ELF2BIN_COM)
-	$(SIZE_COM) | perl -e "$$MEM_USAGE"
+	$(SIZE_COM) | perl -e "$$MEM_USAGE" "$(MEM_FLASH)" "$(MEM_RAM)"
+ifneq ($(FLASH_INFO),)
+	printf "Flash size: $(FLASH_INFO)\n\n"
+endif
 	perl -e 'print "Build complete. Elapsed time: ", time()-$(START_TIME),  " seconds\n\n"'
 
 upload flash: all
@@ -227,8 +225,13 @@ http: all
 	echo "\n"
 
 $(FS_IMAGE): $(wildcard $(FS_DIR)/*)
+ifneq ($(CHIP),esp32)
 	echo Generating filesystem image: $(FS_IMAGE)
 	$(MKSPIFFS_COM)
+else
+	echo No SPIFFS function available for $(CHIP)
+	exit 1
+endif
 
 fs: $(FS_IMAGE)
 
@@ -248,9 +251,59 @@ clean:
 	echo Removing all build files
 	rm  -rf $(BUILD_DIR)/*
 
+list_boards:
+	echo === Available boards ===
+	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^(\w+)\.name=(.+)/){ print sprintf("%-20s %s\n", $$1,$$2);} }'
+
 list_lib:
 	echo === User specific libraries ===
 	perl -e 'foreach (@ARGV) {print "$$_\n"}' "* Include directories:" $(USER_INC_DIRS)  "* Library source files:" $(USER_SRC)
+
+list_flash_defs:
+	echo === Memory configurations for board: $(BOARD) ===
+	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.menu\.FlashSize.([^\.]+)=(.+)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
+
+help:
+	echo
+	echo "Generic makefile for building Arduino esp8266 and esp32 projects"
+	echo "This file can either be used directly or included from another makefile"
+	echo ""
+	echo "The following targets are available:"
+	echo "  all                  (default) Build the project application"
+	echo "  clean                Remove all intermediate build files"
+	echo "  flash                Build and and flash the project application"
+	echo "  flash_fs             Build and and flash file system (when applicable)"
+	echo "  ota                  Build and and flash via OTA"
+	echo "                         Params: ESP_ADDR, ESP_PORT and ESP_PWD"
+	echo "  http                 Build and and flash via http (curl)"
+	echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
+	echo "  dump_flash           Dump the whole board flash memory to a file"
+	echo "  restore_flash        Restore flash memory from a previously dumped file"
+	echo "  list_lib             Show a list of used library files and include paths"
+	echo "Configurable parameters:"
+	echo "  SKETCH               Main source file"
+	echo "                         If not specified the first sketch in current"
+	echo "                         directory will be used. If none is found there,"
+	echo "                         a demo example will be used instead."
+	echo "  LIBS                   Includes in the sketch file of libraries from within"
+	echo "                         the ESP Arduino directories are automatically"
+	echo "                         detected. If this is not enough, define this"
+	echo "                         variable with all libraries or directories needed."
+	echo "  CHIP                 Set to esp8266 or esp32. Default: '$(CHIP)'"
+	echo "  BOARD                Name of the target board. Default: '$(BOARD)'"
+	echo "                         Use 'list_boards' to get list of available ones"
+	echo "  FLASH_DEF            Flash partitioning info. Default '$(FLASH_DEF)'"
+	echo "                         Use 'list_flash_defs' to get list of available ones"
+	echo "  BUILD_DIR            Directory for intermediate build files."
+	echo "                         Default '$(BUILD_DIR)'"
+	echo "  FS_DIR               File system root directory"
+	echo "  UPLOAD_PORT          Serial flashing port name. Default: '$(UPLOAD_PORT)'"
+	echo "  UPLOAD_SPEED         Serial flashing baud rate. Default: '$(UPLOAD_SPEED)'"
+	echo "  FLASH_FILE           File name for dump and restore flash operations"
+	echo "                          Default: '$(FLASH_FILE)'"
+	echo "  VERBOSE              Set to 1 to get full printout of the build"
+	echo "  SINGLE_THREAD        Use only one build thread"
+	echo
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -280,47 +333,56 @@ endif
 
 # Inline Perl scripts
 
-# Parse Arduino build commands from the descriptions
+# Parse Arduino definitions and build commands from the descriptions
 define PARSE_ARDUINO
 my $$board = shift;
 my $$flashSize = shift;
 my %v;
 
+sub def_var {
+   my ($$name, $$var) = @_;
+   print "$$var ?= $$v{$$name}\n";
+   $$v{$$name} = "\$$($$var)";
+}
+
 $$v{'runtime.platform.path'} = '$$(ESP_ROOT)';
 $$v{'includes'} = '$$(C_INCLUDES)';
 $$v{'runtime.ide.version'} = '10605';
-$$v{'build.arch'} = 'ESP8266';
+$$v{'build.arch'} = '$$(CHIP)';
 $$v{'build.project_name'} = '$$(MAIN_NAME)';
 $$v{'build.path'} = '$$(BUILD_DIR)';
-$$v{'build.flash_freq'} = '$$(FLASH_SPEED)';
 $$v{'object_files'} = '$$^ $$(BUILD_INFO_OBJ)';
-$$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} = '$$(COMP_PATH)';
-$$v{'runtime.tools.esptool.path'} = '$$(ESPTOOL_PATH)';
-$$v{'runtime.tools.mkspiffs.path'} = '$$(MKSPIFFS_PATH)';
 
 foreach my $$fn (@ARGV) {
    open($$f, $$fn) || die "Failed to open: $$fn\n";
    while (<$$f>) {
-      next unless /(\w[\w\-\.]+)=(.*)/;
+      next unless /^(\w[\w\-\.]+)=(.*)/;
       my ($$key, $$val) =($$1, $$2);
-		$$board_defined = 1 if $$key eq "$$board.name";
+      $$board_defined = 1 if $$key eq "$$board.name";
       $$key =~ s/$$board\.menu\.FlashSize\.$$flashSize\.//;
-		$$key =~ s/^$$board\.//;
-      $$key =~ s/^tools\.esptool\.//;
-      $$v{$$key} = $$val;
+      $$key =~ s/$$board\.menu\.FlashFreq\.[^\.]+\.//;
+      $$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
+      $$key =~ s/^$$board\.//;
+      $$v{$$key} ||= $$val;
    }
    close($$f);
 }
+$$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$$(COMP_PATH)';
+$$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
+$$v{'runtime.tools.mkspiffs.path'} ||= '$$(MKSPIFFS_PATH)';
+
 die "* Uknown board $$board\n" unless $$board_defined;
-$$v{'build.flash_mode'} = '$$(FLASH_MODE)';
-$$v{'build.f_cpu'} = '$$(F_CPU)';
+
+print "# Board definitions\n";
+def_var('build.f_cpu', 'F_CPU');
+def_var('build.flash_mode', 'FLASH_MODE');
+def_var('build.flash_freq', 'FLASH_SPEED');
+def_var('upload.resetmethod', 'UPLOAD_RESET');
+def_var('upload.speed', 'UPLOAD_SPEED');
 $$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
-print "UPLOAD_RESET ?= $$v{'upload.resetmethod'}\n";
-$$v{'upload.resetmethod'} = '$$(UPLOAD_RESET)';
-print "UPLOAD_SPEED ?= $$v{'upload.speed'}\n";
-$$v{'upload.speed'} = '$$(UPLOAD_SPEED)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 $$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
+$$v{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$$1\}/g;
 
 foreach my $$key (sort keys %v) {
    while ($$v{$$key} =~/\{/) {
@@ -331,6 +393,8 @@ foreach my $$key (sort keys %v) {
    $$v{$$key} =~ s/(-D\w+=)"([^"]+)"/$$1\\"$$2\\"/g;
 }
 
+print "INCLUDE_VARIANT = $$v{'build.variant'}\n";
+print "# Commands\n";
 print "C_COM=$$v{'recipe.c.o.pattern'}\n";
 print "CPP_COM=$$v{'recipe.cpp.o.pattern'}\n";
 print "S_COM=$$v{'recipe.S.o.pattern'}\n";
@@ -340,8 +404,8 @@ print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
 my $$flash_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
 print "MKSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$flash_size -c \$$(FS_DIR) \$$(FS_IMAGE)\n";
-print "UPLOAD_COM=$$v{'upload.pattern'}\n";
-my $$fs_upload_com = $$v{'upload.pattern'};
+print "UPLOAD_COM=$$v{'tools.esptool.upload.pattern'}\n";
+my $$fs_upload_com = $$v{'tools.esptool.upload.pattern'};
 $$fs_upload_com =~ s/(.+ -ca) .+/$$1 $$v{'build.spiffs_start'} -cf \$$(FS_IMAGE)/;
 print "FS_UPLOAD_COM=$$fs_upload_com\n";
 my $$val = $$v{'recipe.hooks.core.prebuild.1.pattern'};
@@ -349,14 +413,19 @@ $$val =~ s/bash -c "(.+)"/$$1/;
 $$val =~ s/(#define .+0x)(\`)/"\\$$1\"$$2/;
 $$val =~ s/(\\)//;
 print "PREBUILD_COM=$$val\n";
+print "MEM_FLASH=$$v{'recipe.size.regex'}\n";
+print "MEM_RAM=$$v{'recipe.size.regex.data'}\n";
+print "FLASH_INFO=$$v{'menu.FlashSize.' . $$flashSize}\n"
 endef
 export PARSE_ARDUINO
 
 # Convert memory information
 define MEM_USAGE
+$$fp = shift;
+$$rp = shift;
 while (<>) {
-  $$r += $$1 if /^\.(?:data|rodata|bss)\s+(\d+)/;
-  $$f += $$1 if /^\.(?:irom0\.text|text|data|rodata)\s+(\d+)/;
+  $$r += $$1 if /$$rp/;
+  $$f += $$1 if /$$fp/;
 }
 print "\nMemory usage\n";
 print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "Ram:", $$r, "Flash:", $$f);
