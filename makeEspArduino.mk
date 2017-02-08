@@ -207,6 +207,7 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_ARDUINO_VERSION)"};' >>$(BUILD_INFO_CPP)
 	$(CPP_COM) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
 	$(LD_COM)
+	$(GEN_PART_COM)
 	$(ELF2BIN_COM)
 	$(SIZE_COM) | perl -e "$$MEM_USAGE" "$(MEM_FLASH)" "$(MEM_RAM)"
 ifneq ($(FLASH_INFO),)
@@ -383,6 +384,7 @@ $$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 $$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
 $$v{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$$1\}/g;
+$$v{'compiler.cpreprocessor.flags'} .= " \$$(C_PRE_PROC_FLAGS)";
 
 foreach my $$key (sort keys %v) {
    while ($$v{$$key} =~/\{/) {
@@ -400,6 +402,7 @@ print "CPP_COM=$$v{'recipe.cpp.o.pattern'}\n";
 print "S_COM=$$v{'recipe.S.o.pattern'}\n";
 print "AR_COM=$$v{'recipe.ar.pattern'}\n";
 print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
+print "GEN_PART_COM=$$v{'recipe.objcopy.eep.pattern'}\n";
 print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
 my $$flash_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
