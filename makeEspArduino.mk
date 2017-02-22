@@ -154,9 +154,9 @@ FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(B
 
 # The actual build commands are to be extracted from the Arduino description files
 ARDUINO_MK = $(BUILD_DIR)/arduino.mk
-ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt")
+ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
 $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
-	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) $(ARDUINO_DESC) >$(ARDUINO_MK)
+	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
 -include $(ARDUINO_MK)
 
@@ -385,6 +385,7 @@ $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 $$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
 $$v{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$$1\}/g;
 $$v{'compiler.cpreprocessor.flags'} .= " \$$(C_PRE_PROC_FLAGS)";
+$$v{'build.extra_flags'} .= " \$$(BUILD_EXTRA_FLAGS)";
 
 foreach my $$key (sort keys %v) {
    while ($$v{$$key} =~/\{/) {
