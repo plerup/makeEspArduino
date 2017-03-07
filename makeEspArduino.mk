@@ -31,10 +31,30 @@ BOARD ?= $(if $(filter $(CHIP), esp32),esp32,generic)
 UPLOAD_PORT ?= /dev/ttyUSB0
 UPLOAD_VERB ?= -v
 
-# OTA parameters
-ESP_ADDR ?= ESP_123456
-ESP_PORT ?= 8266
-ESP_PWD ?= 123
+# OTA parameters with backwards compatibility
+ifndef OTA_ADDR
+  ifdef ESP_ADDR
+    OTA_ADDR = $(ESP_ADDR)
+  else
+    OTA_ADDR = ESP_123456
+  endif
+endif
+
+ifndef OTA_PORT
+  ifdef ESP_PORT
+    OTA_PORT = $(ESP_PORT)
+  else
+    OTA_PORT = 8266
+  endif
+endif
+
+ifndef OTA_PWD
+  ifdef ESP_PWD
+    OTA_PWD = $(ESP_PWD)
+  else
+    OTA_PWD = 123
+  endif
+endif
 
 # HTTP update parameters
 HTTP_ADDR ?= ESP_123456
@@ -122,7 +142,7 @@ OBJ_EXT = .o
 DEP_EXT = .d
 
 # Special tool definitions
-OTA_TOOL = $(TOOLS_ROOT)/espota.py
+OTA_TOOL ?= $(TOOLS_ROOT)/espota.py
 HTTP_TOOL = curl
 
 # Core source files
@@ -219,7 +239,7 @@ upload flash: all
 	$(UPLOAD_COM)
 
 ota: all
-	$(OTA_TOOL) -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
+	$(OTA_TOOL) -i $(OTA_ADDR) -p $(OTA_PORT) -a $(OTA_PWD) -f $(MAIN_EXE)
 
 http: all
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
@@ -275,7 +295,7 @@ help:
 	echo "  flash                Build and and flash the project application"
 	echo "  flash_fs             Build and and flash file system (when applicable)"
 	echo "  ota                  Build and and flash via OTA"
-	echo "                         Params: ESP_ADDR, ESP_PORT and ESP_PWD"
+	echo "                         Params: OTA_ADDR, OTA_PORT and OTA_PWD"
 	echo "  http                 Build and and flash via http (curl)"
 	echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
 	echo "  dump_flash           Dump the whole board flash memory to a file"
