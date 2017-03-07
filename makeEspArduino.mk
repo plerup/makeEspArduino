@@ -89,6 +89,9 @@ ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
 TOOLS_ROOT = $(ESP_ROOT)/tools
 
+SKETCHBOOK_DIR ?= $(HOME)/Arduino
+USER_LIB_DIR = $(SKETCHBOOK_DIR)/libraries
+
 ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
@@ -131,17 +134,21 @@ CORE_SRC := $(shell find $(CORE_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp"
 CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
 
+SKETCH_DIR = $(dir $(SKETCH))
+SKETCH_SRC := $(SKETCH) $(shell find $(SKETCH_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp")
+
 # User defined compilation units and directories
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
-  LIBS := $(shell perl -e 'use File::Find;$$d = shift;while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {print $$File::Find::dir," " if $$f{$$_}}, $$d);'  $(ESP_LIBS) $(SKETCH))
+  LIB_PATH = $(ESP_LIBS) $(SKETCH_DIR) $(USER_LIB_DIR)
+  FIND_LIB_CMD := perl -e 'use File::Find;$$d = shift;while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {print $$File::Find::dir," " if $$f{$$_}}, $$d);'
+  LIBS := $(foreach FILE,$(SKETCH_SRC),$(foreach PTH,$(LIB_PATH),$(shell $(FIND_LIB_CMD) $(PTH) $(FILE))))
   ifeq ($(LIBS),)
     # No dependencies found
     LIBS = /dev/null
   endif
 endif
 
-SKETCH_DIR = $(dir $(SKETCH))
 USER_INC := $(shell find $(SKETCH_DIR) $(LIBS) -name "*.h")
 USER_SRC := $(SKETCH) $(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
 # Object file suffix seems to be significant for the linker...
