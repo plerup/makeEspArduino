@@ -162,8 +162,14 @@ ifeq ($(LIBS),)
 endif
 
 SKETCH_DIR = $(dir $(SKETCH))
-USER_INC := $(shell find $(SKETCH_DIR) $(LIBS) -name "*.h")
-USER_SRC := $(SKETCH) $(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
+
+SHELL := /bin/bash
+ifdef IGNORE_DIRS
+  EXCLUDE := $(shell IFS=';' read -ra ADDR <<< "$(IGNORE_DIRS)" ; for i in "$${ADDR[@]}"; do if [ ! -z "$$i" ]; then s="$${s} -not -path '$${i}'"; fi done; echo $$s)
+endif
+
+USER_INC := $(shell find $(SKETCH_DIR) $(LIBS) -name "*.h" $(EXCLUDE) )
+USER_SRC := $(SKETCH) $(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp" $(EXCLUDE) )
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
