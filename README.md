@@ -136,13 +136,15 @@ an example sketch from will be used.
 in the build. Please note that there is no restrictions regarding location and naming of these files as in the Arduino IDE build system.
 If this variable is not defined makeEspArduino tries to locate all required libraries by parsing the include statements in the sketch source file. Only
 libraries in the ESP/Arduino library structure are detected though so if you have your own libraries you have to explicitly list them in this variable.
-All source files located in the same directory as the sketch will also be included automatically.
+All source files located in the same directory as the sketch will also be included automatically. The variable **EXCLUDE_DIRS** can be setup to exclude one or several directories from the wildcard search.
 
 **CHIP** Set to either esp8266 (default) or esp32
 
 **BOARD** The type of ESP8266 or ESP32 board you are using
 
 **BUILD_DIR** All intermediate build files (object, map files etc.) are stored in a separate directory controlled by this variable. Default is a sub directory of the tmp structure.
+
+**BUILD_EXTRA_FLAGS** this variable can be setup to add additional parameters for the compilation commands. It will be placed last and thereby it is possible to override the preceding default ones.
 
 There are some other important variables which corresponds to the settings which you normally do in the "Tools" menu in the Arduino IDE. The makefile will parse the Arduino IDE configuration files and use the same defaults as you would get when after selecting a board in the "Tools" menu.
 

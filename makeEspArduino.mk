@@ -28,7 +28,7 @@ CHIP ?= esp8266
 BOARD ?= $(if $(filter $(CHIP), esp32),esp32,generic)
 
 # Serial flashing parameters
-UPLOAD_PORT ?= /dev/ttyUSB0
+UPLOAD_PORT ?= $(shell ls -1tr /dev/ttyUSB* | tail -1)
 UPLOAD_VERB ?= -v
 
 # OTA parameters
@@ -122,8 +122,8 @@ OBJ_EXT = .o
 DEP_EXT = .d
 
 # Special tool definitions
-OTA_TOOL = $(TOOLS_ROOT)/espota.py
-HTTP_TOOL = curl
+OTA_TOOL ?= $(TOOLS_ROOT)/espota.py
+HTTP_TOOL ?= curl
 
 # Core source files
 CORE_DIR = $(ESP_ROOT)/cores/$(CHIP)
@@ -141,9 +141,10 @@ ifeq ($(LIBS),)
   endif
 endif
 
+IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
 SKETCH_DIR = $(dir $(SKETCH))
-USER_INC := $(shell find $(SKETCH_DIR) $(LIBS) -name "*.h")
-USER_SRC := $(SKETCH) $(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp")
+USER_INC := $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(LIBS) -name "*.h"))
+USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp"))
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
@@ -297,6 +298,7 @@ help:
 	echo "                         Use 'list_flash_defs' to get list of available ones"
 	echo "  BUILD_DIR            Directory for intermediate build files."
 	echo "                         Default '$(BUILD_DIR)'"
+	echo "  BUILD_EXTRA_FLAGS    Additional parameters for the compilation commands"
 	echo "  FS_DIR               File system root directory"
 	echo "  UPLOAD_PORT          Serial flashing port name. Default: '$(UPLOAD_PORT)'"
 	echo "  UPLOAD_SPEED         Serial flashing baud rate. Default: '$(UPLOAD_SPEED)'"
