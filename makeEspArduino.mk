@@ -382,6 +382,7 @@ def_var('build.flash_mode', 'FLASH_MODE');
 def_var('build.flash_freq', 'FLASH_SPEED');
 def_var('upload.resetmethod', 'UPLOAD_RESET');
 def_var('upload.speed', 'UPLOAD_SPEED');
+def_var('compiler.warning_flags', 'COMP_WARNINGS');
 $$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 $$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
