@@ -142,7 +142,7 @@ All source files located in the same directory as the sketch will also be includ
 
 **BOARD** The type of ESP8266 or ESP32 board you are using
 
-**BUILD_DIR** All intermediate build files (object, map files etc.) are stored in a separate directory controlled by this variable. Default is a sub directory of the tmp structure.
+**BUILD_DIR** All intermediate build files (object, map files etc.) are stored in a separate directory controlled by this variable. Default is a sub directory of the tmp structure. Set **BUILD_DIR_PREFIX** if you want to move it out of the temporary directories.
 
 **BUILD_EXTRA_FLAGS** this variable can be setup to add additional parameters for the compilation commands. It will be placed last and thereby it is possible to override the preceding default ones.
 
