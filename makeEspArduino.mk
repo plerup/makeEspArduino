@@ -43,7 +43,8 @@ HTTP_PWD ?= user
 HTTP_USR ?= password
 
 # Output directory
-BUILD_DIR ?= /tmp/mkESP/$(MAIN_NAME)_$(BOARD)
+BUILD_DIR_PREFIX ?= /tmp/mkESP
+BUILD_DIR ?= $(BUILD_DIR_PREFIX)/$(MAIN_NAME)_$(BOARD)
 
 # File system source directory
 FS_DIR ?= $(dir $(SKETCH))data
@@ -298,6 +299,10 @@ help:
 	echo "                         Use 'list_flash_defs' to get list of available ones"
 	echo "  BUILD_DIR            Directory for intermediate build files."
 	echo "                         Default '$(BUILD_DIR)'"
+	echo "  BUILD_DIR_PREFIX     Base directory for intermediate build files."
+	echo "                         Used as a prefix for BUILD_DIR unless BUILD_DIR is"
+	echo "                         explicitly specified"
+	echo "                         Default '$(BUILD_DIR_PREFIX)'"
 	echo "  BUILD_EXTRA_FLAGS    Additional parameters for the compilation commands"
 	echo "  FS_DIR               File system root directory"
 	echo "  UPLOAD_PORT          Serial flashing port name. Default: '$(UPLOAD_PORT)'"
