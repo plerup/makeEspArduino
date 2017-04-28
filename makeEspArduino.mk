@@ -51,6 +51,9 @@ FS_DIR ?= $(dir $(SKETCH))data
 # Bootloader
 BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
 
+# Warnings can be 'none', 'default', 'more' or 'all'
+WARNINGS ?= default
+
 #====================================================================================
 # Standard build logic and values
 #====================================================================================
@@ -348,6 +351,11 @@ sub def_var {
    $$v{$$name} = "\$$($$var)";
 }
 
+sub map_var {
+  my $$key = shift(@_);
+  return ($$key eq 'compiler.warning_flags') ? $$key . '.$(WARNINGS)' : $$key;
+}
+
 $$v{'runtime.platform.path'} = '$$(ESP_ROOT)';
 $$v{'includes'} = '$$(C_INCLUDES)';
 $$v{'runtime.ide.version'} = '10605';
@@ -392,7 +400,7 @@ $$v{'build.extra_flags'} .= " \$$(BUILD_EXTRA_FLAGS)";
 
 foreach my $$key (sort keys %v) {
    while ($$v{$$key} =~/\{/) {
-      $$v{$$key} =~ s/\{([\w\-\.]+)\}/$$v{$$1}/;
+      $$v{$$key} =~ s/\{([\w\-\.]+)\}/$$v{map_var $$1}/e;
       $$v{$$key} =~ s/""//;
    }
    $$v{$$key} =~ s/ -o $$//;
