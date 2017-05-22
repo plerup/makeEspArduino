@@ -142,7 +142,7 @@ All source files located in the same directory as the sketch will also be includ
 
 **BOARD** The type of ESP8266 or ESP32 board you are using
 
-**BUILD_DIR** All intermediate build files (object, map files etc.) are stored in a separate directory controlled by this variable. Default is a sub directory of the tmp structure.
+**BUILD_DIR** All intermediate build files (object, map files etc.) are stored in a separate directory controlled by this variable. By default this is set to a name consisting of the project and board names. This is just the directory name, the root of this directory is controlled by the variable **BUILD_ROOT**. Default for this is /tmp/mkESP but it can be set to a non-temporary location if so is desired.
 
 **BUILD_EXTRA_FLAGS** this variable can be setup to add additional parameters for the compilation commands. It will be placed last and thereby it is possible to override the preceding default ones.
 
@@ -154,6 +154,9 @@ As stated above you can always get a description of all makefile operations, con
 
     espmake help
 
+##### Automatic rebuild
+
+Another special feature of this makefile is that it keeps a record of the command line parameters and git versions used in the latest build. If any of these are changed during the next build, e.g. changing a variable definition, a complete rebuild is made in order to ensure that all possible changes are applied.
 
 ##### Including the makefile
 

@@ -43,7 +43,8 @@ HTTP_PWD ?= user
 HTTP_USR ?= password
 
 # Output directory
-BUILD_DIR ?= /tmp/mkESP/$(MAIN_NAME)_$(BOARD)
+BUILD_ROOT ?= /tmp/mkESP
+BUILD_DIR ?= $(BUILD_ROOT)/$(MAIN_NAME)_$(BOARD)
 
 # File system source directory
 FS_DIR ?= $(dir $(SKETCH))data
@@ -66,21 +67,23 @@ ifndef ESP_ROOT
   # Location not defined, find and use possible version in the Arduino IDE installation
   OS ?= $(shell uname -s)
   ifeq ($(OS), Windows_NT)
-    ARDUINO_DIR = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15/packages/$(CHIP))
+    ARDUINO_ROOT = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15)
   else ifeq ($(OS), Darwin)
-    ARDUINO_DIR = $(HOME)/Library/Arduino15/packages/$(CHIP)
+    ARDUINO_ROOT = $(HOME)/Library/Arduino15
   else
-    ARDUINO_DIR = $(HOME)/.arduino15/packages/$(CHIP)
+    ARDUINO_ROOT = $(HOME)/.arduino15
   endif
-  ESP_ROOT := $(lastword $(wildcard $(ARDUINO_DIR)/hardware/$(CHIP)/*))
+  ARDUINO_ESP_ROOT = $(ARDUINO_ROOT)/packages/$(CHIP)
+  ESP_ROOT := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/hardware/$(CHIP)/*))
   ifeq ($(ESP_ROOT),)
     $(error No installed version of $(CHIP) Arduino found)
   endif
+  ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
-  COMP_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/xtensa-lx106-elf-gcc/*))
-  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/esptool/*))
-  MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_DIR)/tools/mkspiffs/*))
+  COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-lx106-elf-gcc/*))
+  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool/*))
+  MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*))
 else
   # Location defined, assume it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
@@ -134,7 +137,7 @@ CORE_LIB = $(BUILD_DIR)/arduino.ar
 # User defined compilation units and directories
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
-  LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {print $$File::Find::dir," " if $$f{$$_}}, @d);'  "$(ESP_LIBS) $(HOME)/Arduino/libraries" $(SKETCH))
+  LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);'  "$(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH))
   ifeq ($(LIBS),)
     # No dependencies found
     LIBS = /dev/null
@@ -160,6 +163,21 @@ $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
 	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
 -include $(ARDUINO_MK)
+
+# Handle possible changed state i.e. make command line parameters or changed git versions
+IGNORE_STATE = $(if $(filter $(MAKECMDGOALS), help),1,)
+ifeq ($(IGNORE_STATE),)
+  STATE_LOG := $(BUILD_DIR)/state.txt
+  STATE_INF := $(strip $(foreach par,$(shell tr "\0" " " </proc/$$PPID/cmdline),$(if $(findstring =,$(par)),$(par),))) \
+               $(PROJ_VERSION) $(ENV_VERSION)
+  PREV_STATE_INF := $(if $(wildcard $(STATE_LOG)),$(shell cat $(STATE_LOG)),$(STATE_INF))
+  ifneq ($(PREV_STATE_INF),$(STATE_INF))
+    $(info * Build state has changed, doing a full rebuild *)
+    MAKEFLAGS += -B
+  endif
+  STATE_SAVE := $(shell mkdir -p $(BUILD_DIR) ; echo -n '$(STATE_INF)' >$(STATE_LOG))
+endif
+
 
 # Compilation directories and path
 INCLUDE_DIRS += $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(BUILD_DIR)
@@ -395,7 +413,7 @@ foreach my $$key (sort keys %v) {
       $$v{$$key} =~ s/\{([\w\-\.]+)\}/$$v{$$1}/;
       $$v{$$key} =~ s/""//;
    }
-   $$v{$$key} =~ s/ -o $$//;
+   $$v{$$key} =~ s/ -o\s+$$//;
    $$v{$$key} =~ s/(-D\w+=)"([^"]+)"/$$1\\"$$2\\"/g;
 }
 
