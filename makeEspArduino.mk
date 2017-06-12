@@ -28,7 +28,8 @@ CHIP ?= esp8266
 BOARD ?= $(if $(filter $(CHIP), esp32),esp32,generic)
 
 # Serial flashing parameters
-UPLOAD_PORT ?= $(shell ls -1tr /dev/ttyUSB* | tail -1)
+UPLOAD_PORT ?= $(shell ls -1tr /dev/ttyUSB* 2>/dev/null | tail -1)
+UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
 UPLOAD_VERB ?= -v
 
 # OTA parameters
@@ -146,7 +147,7 @@ endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
 SKETCH_DIR = $(dir $(SKETCH))
-USER_INC := $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(LIBS) -name "*.h"))
+USER_INC := $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(dir $(LIBS)) -name "*.h"))
 USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp"))
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
@@ -165,7 +166,7 @@ $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
 -include $(ARDUINO_MK)
 
 # Handle possible changed state i.e. make command line parameters or changed git versions
-IGNORE_STATE = $(if $(filter $(MAKECMDGOALS), help),1,)
+IGNORE_STATE = $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards),1,)
 ifeq ($(IGNORE_STATE),)
   STATE_LOG := $(BUILD_DIR)/state.txt
   STATE_INF := $(strip $(foreach par,$(shell tr "\0" " " </proc/$$PPID/cmdline),$(if $(findstring =,$(par)),$(par),))) \
@@ -177,7 +178,6 @@ ifeq ($(IGNORE_STATE),)
   endif
   STATE_SAVE := $(shell mkdir -p $(BUILD_DIR) ; echo -n '$(STATE_INF)' >$(STATE_LOG))
 endif
-
 
 # Compilation directories and path
 INCLUDE_DIRS += $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(BUILD_DIR)
