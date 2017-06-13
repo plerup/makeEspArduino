@@ -193,7 +193,7 @@ It is of course also always possible to control the variable values in the makef
 #### Building a file system
 
 There are also rules in the makefile which can be used for building and uploading a complete SPIFFS file system to the ESP. This is basically the same functionality
-as the one available in the Arduino IDE, https://github.com/esp8266/Arduino/blob/master/doc/filesystem.md#uploading-files-to-file-system
+as the one available in the Arduino IDE, https://github.com/esp8266/Arduino/blob/master/doc/filesystem.rst#uploading-files-to-file-system
 
 The file system content is made up of everything within a directory specified via the variable **FS_DIR**. By default this variable is set to a subdirectory named
 **data** in the sketch directory.
