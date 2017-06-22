@@ -89,8 +89,10 @@ ifndef ESP_ROOT
   MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*))
 else
   # Location defined, assume it is a git clone
+  ESP_ROOT := $(shell realpath $(ESP_ROOT))
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
 endif
+
 ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
 TOOLS_ROOT = $(ESP_ROOT)/tools
