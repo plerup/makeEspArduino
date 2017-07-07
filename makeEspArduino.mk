@@ -143,10 +143,6 @@ CORE_LIB = $(BUILD_DIR)/arduino.ar
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
   LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);'  "$(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH))
-  ifeq ($(LIBS),)
-    # No dependencies found
-    LIBS = /dev/null
-  endif
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
@@ -165,7 +161,7 @@ FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(B
 ARDUINO_MK = $(BUILD_DIR)/arduino.mk
 ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
 $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
-	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
+	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) \"$(OS)\" $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
 -include $(ARDUINO_MK)
 
@@ -362,6 +358,7 @@ endif
 define PARSE_ARDUINO
 my $$board = shift;
 my $$flashSize = shift;
+my $$os = (shift =~ /Windows_NT/) ? "windows" : "linux";
 my %v;
 
 sub def_var {
@@ -389,6 +386,7 @@ foreach my $$fn (@ARGV) {
       $$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
       $$key =~ s/^$$board\.//;
       $$v{$$key} ||= $$val;
+      $$v{$$1} = $$v{$$key} if $$key =~ /(.+)\.$$os$$/;
    }
    close($$f);
 }
