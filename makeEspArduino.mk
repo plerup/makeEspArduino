@@ -142,7 +142,7 @@ ifeq ($(LIBS),)
   USER_FILES := $(shell find $(SKETCH_DIR) -name "*.h" -or -name "*.c" -or -name "*.cpp" -or -name "*.ino")
 
   # Automatically find directories with header files used by the sketch
-  LIBS := $(sort $(foreach file,$(USER_FILES),$(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);'  "$(ESP_LIBS) $(ARDUINO_LIBS)" $(file))))
+  LIBS := $(sort $(foreach file,$(USER_FILES),$(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);'  "$(ESP_LIBS) $(ARDUINO_LIBS) $(ADDITIONAL_LIBS)" $(file))))
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
