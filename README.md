@@ -190,6 +190,11 @@ It is of course also always possible to control the variable values in the makef
 
     export UPLOAD_PORT=/dev/ttyUSB2
 
+#### Flash operations for esp8266
+
+The Arduino configuration files for esp8266 currently specifies "esptool ck" as the tool to be used for flashing operations. The alternative "esptool.py" (which is used for esp32) can however be used here as well. This tool is significantly faster and makeEspArduino will check if "esptool.py" can be found in the path. When present, it will be used for the flashing. An alternative location outside of the path for "esptool.py" can also be specified via the variable ESPTOOL_PY.
+This tool is not part of ESP/Arduino and subsequently must be installed separately from: https://github.com/espressif/esptool
+
 #### Building a file system
 
 There are also rules in the makefile which can be used for building and uploading a complete SPIFFS file system to the ESP. This is basically the same functionality
@@ -204,11 +209,11 @@ All the settings for the file system are taken from the selected board's configu
 
 *This function is currently not available for esp32*
 
-#### Flash I/O operations
+#### Additional flash I/O operations
 
 The makefile has rules for dumping and restoring the whole flash memory contents to and from a file. This can be convenient for saving a specific state or software for which no source code is available.
 
-This functionality is achieved by using "esptool.py". This tool is not part of ESP/Arduino and subsequently must be installed separately from: https://github.com/espressif/esptool
+This functionality requires that "esptool.py" is available as specified above.
 
 The rules are named **dump_flash** and **restore_flash**. The name of the output/input file is controlled by the variable **FLASH_FILE**. The default value for this is "esp_flash.bin". All required parameters for the operations are taken from the variables mentioned above for flash size, serial port and speed etc.
 

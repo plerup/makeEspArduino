@@ -5,7 +5,7 @@
 # Edit the contents of this file to suit your project
 # or just include it and override the applicable macros.
 #
-# License: GPL 2.1
+# License: LGPL 2.1
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
@@ -97,7 +97,15 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
-ESPTOOL_PY = esptool.py --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
+ESPTOOL_PY ?= $(shell which esptool.py)
+ifneq ($(ESPTOOL_PY),)
+  # esptool.py exists, use it for esp8266 flash operations
+  ESPTOOL_PY += --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
+  ifeq ($(CHIP),esp8266)
+   UPLOAD_COM = $(ESPTOOL_PY) -a soft_reset write_flash 0x00000 $(BUILD_DIR)/$(MAIN_NAME).bin
+   FS_UPLOAD_COM = $(ESPTOOL_PY)  --port $(UPLOAD_PORT) --baud $(UPLOAD_SPEED) -a soft_reset write_flash $(SPIFFS_START) $(FS_IMAGE)
+  endif
+endif
 
 # Search for sketch if not defined
 SKETCH := $(realpath $(firstword \
@@ -221,7 +229,7 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	echo 	'#include <buildinfo.h>' >$(BUILD_INFO_CPP)
 	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_ARDUINO_VERSION)"};' >>$(BUILD_INFO_CPP)
 	$(CPP_COM) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
-	$(LD_COM)
+	$(LD_COM) $(LD_EXTRA)
 	$(GEN_PART_COM)
 	$(ELF2BIN_COM)
 	$(SIZE_COM) | perl -e "$$MEM_USAGE" "$(MEM_FLASH)" "$(MEM_RAM)"
@@ -427,10 +435,11 @@ print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
 my $$flash_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
 print "MKSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$flash_size -c \$$(FS_DIR) \$$(FS_IMAGE)\n";
-print "UPLOAD_COM=$$v{'tools.esptool.upload.pattern'}\n";
+print "UPLOAD_COM?=$$v{'tools.esptool.upload.pattern'}\n";
+print "SPIFFS_START=$$v{'build.spiffs_start'}\n";
 my $$fs_upload_com = $$v{'tools.esptool.upload.pattern'};
 $$fs_upload_com =~ s/(.+ -ca) .+/$$1 $$v{'build.spiffs_start'} -cf \$$(FS_IMAGE)/;
-print "FS_UPLOAD_COM=$$fs_upload_com\n";
+print "FS_UPLOAD_COM?=$$fs_upload_com\n";
 my $$val = $$v{'recipe.hooks.core.prebuild.1.pattern'};
 $$val =~ s/bash -c "(.+)"/$$1/;
 $$val =~ s/(#define .+0x)(\`)/"\\$$1\"$$2/;
