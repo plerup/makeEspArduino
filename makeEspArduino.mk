@@ -49,6 +49,7 @@ BUILD_DIR ?= $(BUILD_ROOT)/$(MAIN_NAME)_$(BOARD)
 
 # File system source directory
 FS_DIR ?= $(dir $(SKETCH))data
+FS_REST_DIR ?= $(BUILD_DIR)/file_system
 
 # Bootloader
 BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
@@ -262,10 +263,18 @@ fs: $(FS_IMAGE)
 upload_fs flash_fs: $(FS_IMAGE)
 	$(FS_UPLOAD_COM)
 
-FLASH_FILE ?= esp_flash.bin
+FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
 dump_flash:
 	echo Dumping flash memory to file: $(FLASH_FILE)
 	$(ESPTOOL_PY) read_flash 0 $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";$$mem_size=$$1*1024;$$mem_size*=1024 if $$2 eq "M";print $$mem_size;' $(FLASH_DEF)) $(FLASH_FILE)
+
+dump_fs:
+	echo Dumping flash file system to directory: $(FS_REST_DIR)
+	-$(ESPTOOL_PY) read_flash $(SPIFFS_START) $(SPIFFS_SIZE) $(FS_IMAGE)
+	mkdir -p $(FS_REST_DIR)
+	echo
+	echo == Files ==
+	$(RESTSPIFFS_COM)
 
 restore_flash:
 	echo Restoring flash memory from file: $(FLASH_FILE)
@@ -303,6 +312,8 @@ help:
 	echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
 	echo "  dump_flash           Dump the whole board flash memory to a file"
 	echo "  restore_flash        Restore flash memory from a previously dumped file"
+	echo "  dump_fs              Extract all files from the flash file system"
+	echo "                         Params: FS_DUMP_DIR"
 	echo "  list_lib             Show a list of used library files and include paths"
 	echo "Configurable parameters:"
 	echo "  SKETCH               Main source file"
@@ -433,10 +444,12 @@ print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
 print "GEN_PART_COM=$$v{'recipe.objcopy.eep.pattern'}\n";
 print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
-my $$flash_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
-print "MKSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$flash_size -c \$$(FS_DIR) \$$(FS_IMAGE)\n";
+my $$spiffs_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
+print "MKSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$spiffs_size -c \$$(FS_DIR) \$$(FS_IMAGE)\n";
+print "RESTSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$spiffs_size -u \$$(FS_REST_DIR) \$$(FS_IMAGE)\n";
 print "UPLOAD_COM?=$$v{'tools.esptool.upload.pattern'}\n";
 print "SPIFFS_START=$$v{'build.spiffs_start'}\n";
+print "SPIFFS_SIZE=$$spiffs_size\n";
 my $$fs_upload_com = $$v{'tools.esptool.upload.pattern'};
 $$fs_upload_com =~ s/(.+ -ca) .+/$$1 $$v{'build.spiffs_start'} -cf \$$(FS_IMAGE)/;
 print "FS_UPLOAD_COM?=$$fs_upload_com\n";
