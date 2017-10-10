@@ -32,6 +32,8 @@ The makefile can be used on Linux, Mac OS and Microsoft Windows (Cygwin).
 
 The actual build commands (compile, link etc.) are extracted from the Arduino description files (platform.txt etc.).
 
+Uploading of the built binary can be made via serial channel (esptool), ota (espota.py) or http (curl). Which method to use is controlled by makefile target selection. By default the serial channel is used.
+
 #### Note about ESP32
 It is still early days for the ESP32/Arduino environment and some functionality is still missing, most notably the SPIFFS file system.
 
@@ -203,7 +205,7 @@ as the one available in the Arduino IDE, https://github.com/esp8266/Arduino/blob
 The file system content is made up of everything within a directory specified via the variable **FS_DIR**. By default this variable is set to a subdirectory named
 **data** in the sketch directory.
 
-Use the rule **flash_fs** to generate a file system image and upload it to the ESP.
+Use the rule **flash_fs** or **ota_flash** to generate a file system image and upload it to the ESP.
 
 All the settings for the file system are taken from the selected board's configuration.
 

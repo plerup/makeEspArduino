@@ -243,13 +243,13 @@ upload flash: all
 	$(UPLOAD_COM)
 
 ota: all
-	$(OTA_TOOL) -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
+	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
 
 http: all
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
-$(FS_IMAGE): $(wildcard $(FS_DIR)/*)
+$(FS_IMAGE): $(ARDUINO_MK) $(wildcard $(FS_DIR)/*)
 ifneq ($(CHIP),esp32)
 	echo Generating filesystem image: $(FS_IMAGE)
 	$(MKSPIFFS_COM)
@@ -262,6 +262,10 @@ fs: $(FS_IMAGE)
 
 upload_fs flash_fs: $(FS_IMAGE)
 	$(FS_UPLOAD_COM)
+
+ota_fs: $(FS_IMAGE)
+	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -s -f $(FS_IMAGE)
+
 
 FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
 dump_flash:
@@ -279,6 +283,9 @@ dump_fs:
 restore_flash:
 	echo Restoring flash memory from file: $(FLASH_FILE)
 	$(ESPTOOL_PY) write_flash -fs $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";print ($$2 eq "K" ? 2 : $$1*8);' $(FLASH_DEF))m -fm $(FLASH_MODE) -ff $(FLASH_SPEED)m 0 $(FLASH_FILE)
+
+erase_flash:
+	$(ESPTOOL_PY) erase_flash
 
 clean:
 	echo Removing all build files
@@ -308,12 +315,14 @@ help:
 	echo "  flash_fs             Build and and flash file system (when applicable)"
 	echo "  ota                  Build and and flash via OTA"
 	echo "                         Params: ESP_ADDR, ESP_PORT and ESP_PWD"
+	echo "  ota_fs               Build and and flash file system via OTA"
 	echo "  http                 Build and and flash via http (curl)"
 	echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
 	echo "  dump_flash           Dump the whole board flash memory to a file"
 	echo "  restore_flash        Restore flash memory from a previously dumped file"
 	echo "  dump_fs              Extract all files from the flash file system"
 	echo "                         Params: FS_DUMP_DIR"
+	echo "  erase_flash          Erase the whole flash"
 	echo "  list_lib             Show a list of used library files and include paths"
 	echo "Configurable parameters:"
 	echo "  SKETCH               Main source file"
@@ -385,7 +394,7 @@ sub def_var {
 $$v{'runtime.platform.path'} = '$$(ESP_ROOT)';
 $$v{'includes'} = '$$(C_INCLUDES)';
 $$v{'runtime.ide.version'} = '10605';
-$$v{'build.arch'} = '$$(CHIP)';
+$$v{'build.arch'} = uc('$(CHIP)');
 $$v{'build.project_name'} = '$$(MAIN_NAME)';
 $$v{'build.path'} = '$$(BUILD_DIR)';
 $$v{'object_files'} = '$$^ $$(BUILD_INFO_OBJ)';
