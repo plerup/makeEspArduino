@@ -134,6 +134,9 @@ endif
 OBJ_EXT = .o
 DEP_EXT = .d
 
+# Auto generated makefile with Arduino definitions
+ARDUINO_MK = $(BUILD_DIR)/arduino.mk
+
 # Special tool definitions
 OTA_TOOL ?= $(TOOLS_ROOT)/espota.py
 HTTP_TOOL ?= curl
@@ -162,16 +165,8 @@ USER_INC_DIRS := $(sort $(dir $(USER_INC)))
 # Use first flash definition for the board as default
 FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.FlashSize\.([^\.]+)=/){ print "$$1"; exit;}} print "NA";')
 
-# The actual build commands are to be extracted from the Arduino description files
-ARDUINO_MK = $(BUILD_DIR)/arduino.mk
-ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
-$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
-	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) \"$(OS)\" $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
-
--include $(ARDUINO_MK)
-
 # Handle possible changed state i.e. make command line parameters or changed git versions
-IGNORE_STATE = $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards),1,)
+IGNORE_STATE := $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards),1,)
 ifeq ($(IGNORE_STATE),)
   STATE_LOG := $(BUILD_DIR)/state.txt
   STATE_INF := $(strip $(foreach par,$(shell tr "\0" " " </proc/$$PPID/cmdline),$(if $(findstring =,$(par)),$(par),))) \
@@ -179,10 +174,17 @@ ifeq ($(IGNORE_STATE),)
   PREV_STATE_INF := $(if $(wildcard $(STATE_LOG)),$(shell cat $(STATE_LOG)),$(STATE_INF))
   ifneq ($(PREV_STATE_INF),$(STATE_INF))
     $(info * Build state has changed, doing a full rebuild *)
-    MAKEFLAGS += -B
+    $(shell rm $(ARDUINO_MK))
   endif
   STATE_SAVE := $(shell mkdir -p $(BUILD_DIR) ; echo -n '$(STATE_INF)' >$(STATE_LOG))
 endif
+
+# The actual build commands are to be extracted from the Arduino description files
+ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
+$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
+	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) \"$(OS)\" $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
+
+-include $(ARDUINO_MK)
 
 # Compilation directories and path
 INCLUDE_DIRS += $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(BUILD_DIR)

@@ -205,7 +205,7 @@ as the one available in the Arduino IDE, https://github.com/esp8266/Arduino/blob
 The file system content is made up of everything within a directory specified via the variable **FS_DIR**. By default this variable is set to a subdirectory named
 **data** in the sketch directory.
 
-Use the rule **flash_fs** or **ota_flash** to generate a file system image and upload it to the ESP.
+Use the rule **flash_fs** or **ota_fs** to generate a file system image and upload it to the ESP.
 
 All the settings for the file system are taken from the selected board's configuration.
 
