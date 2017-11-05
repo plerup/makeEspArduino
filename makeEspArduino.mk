@@ -118,6 +118,7 @@ SKETCH := $(realpath $(firstword \
 ifeq ($(wildcard $(SKETCH)),)
   $(error Sketch $(SKETCH) not found)
 endif
+SRC_GIT_VERSION := $(call git_description,$(dir $(SKETCH)))
 
 # Main output definitions
 MAIN_NAME := $(basename $(notdir $(SKETCH)))
@@ -175,7 +176,7 @@ IGNORE_STATE := $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_fla
 ifeq ($(IGNORE_STATE),)
   STATE_LOG := $(BUILD_DIR)/state.txt
   STATE_INF := $(strip $(foreach par,$(CMD_LINE),$(if $(findstring =,$(par)),$(par),))) \
-               $(PROJ_VERSION) $(ENV_VERSION)
+               $(SRC_GIT_VERSION) $(ESP_ARDUINO_VERSION)
   PREV_STATE_INF := $(if $(wildcard $(STATE_LOG)),$(shell cat $(STATE_LOG)),$(STATE_INF))
   ifneq ($(PREV_STATE_INF),$(STATE_INF))
     $(info * Build state has changed, doing a full rebuild *)
@@ -229,7 +230,6 @@ $(CORE_LIB): $(CORE_OBJ)
 
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
-SRC_GIT_VERSION := $(call git_description,$(dir $(SKETCH)))
 
 $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	echo Linking $(MAIN_EXE)
