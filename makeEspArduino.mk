@@ -148,14 +148,17 @@ CORE_SRC := $(shell find $(CORE_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp"
 CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
 
+SKETCH_DIR = $(dir $(SKETCH))
+
 # User defined compilation units and directories
 ifeq ($(LIBS),)
+  USER_FILES := $(shell find $(SKETCH_DIR) -name "*.h" -or -name "*.c" -or -name "*.cpp" -or -name "*.ino")
+
   # Automatically find directories with header files used by the sketch
-  LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);'  "$(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH))
+  LIBS := $(sort $(foreach file,$(USER_FILES),$(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);'  "$(ESP_LIBS) $(ARDUINO_LIBS) $(ADDITIONAL_LIBS)" $(file))))
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
-SKETCH_DIR = $(dir $(SKETCH))
 USER_INC := $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(dir $(LIBS)) -name "*.h"))
 USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp"))
 # Object file suffix seems to be significant for the linker...
@@ -304,7 +307,7 @@ list_boards:
 
 list_lib:
 	echo === User specific libraries ===
-	perl -e 'foreach (@ARGV) {print "$$_\n"}' "* Include directories:" $(USER_INC_DIRS)  "* Library source files:" $(USER_SRC)
+	perl -e 'foreach (@ARGV) {print "$$_\n"}' "* Include directories:" $(USER_INC_DIRS)  "* Library source files:" $(USER_SRC) "* Libraries included:" $(LIBS) "* User files:" $(USER_FILES)
 
 list_flash_defs:
 	echo === Memory configurations for board: $(BOARD) ===
