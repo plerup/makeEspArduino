@@ -151,7 +151,8 @@ CORE_LIB = $(BUILD_DIR)/arduino.ar
 # User defined compilation units and directories
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
-  LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);'  "$(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH))
+  LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);' \
+	                        "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH))
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
@@ -413,8 +414,11 @@ foreach my $$fn (@ARGV) {
       my ($$key, $$val) =($$1, $$2);
       $$board_defined = 1 if $$key eq "$$board.name";
       $$key =~ s/$$board\.menu\.FlashSize\.$$flashSize\.//;
+      $$key =~ s/$$board\.menu\.CpuFrequency\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.FlashFreq\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
+      $$key =~ s/$$board\.menu\.ResetMethod\.[^\.]+\.//;
+      $$key =~ s/$$board\.menu\.FlashMode\.[^\.]+\.//;
       $$key =~ s/^$$board\.//;
       $$v{$$key} ||= $$val;
       $$v{$$1} = $$v{$$key} if $$key =~ /(.+)\.$$os$$/;
