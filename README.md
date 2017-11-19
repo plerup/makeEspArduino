@@ -134,10 +134,10 @@ The most important variables in the makefile are listed below:
 **SKETCH** is the path to the main source file. As stated above, if this is missing then makeEspArduino will try to locate it in the current directory. If no file is found
 an example sketch from will be used.
 
-**LIBS** is a variable which should contain a list of explicit source files and/or directories with multiple source files, which are to be compiled and used as libraries
+**LIBS** is a variable which can contain a list of explicit source files and/or directories with multiple source files, which are to be compiled and used as libraries
 in the build. Please note that there is no restrictions regarding location and naming of these files as in the Arduino IDE build system.
-If this variable is not defined makeEspArduino tries to locate all required libraries by parsing the include statements in the sketch source file. Only
-libraries in the ESP/Arduino library structure are detected though so if you have your own libraries you have to explicitly list them in this variable.
+If you want to achieve automatic search for libraries leave this variable undefined. In this case makeEspArduino will try to recursively locate all required libraries by parsing the include statements in the sketch source file. Libraries in the ESP/Arduino library structure and the standard Arduino library tree will be searched. It is also possible to add other directories/file to search by defining the variable **CUSTOM_LIBS**.
+Please note though that if you want stringent version controlled builds, then define **LIBS** yourself and set it to version controlled directories/files.
 All source files located in the same directory as the sketch will also be included automatically. The variable **EXCLUDE_DIRS** can be setup to exclude one or several directories from the wildcard search.
 
 **CHIP** Set to either esp8266 (default) or esp32

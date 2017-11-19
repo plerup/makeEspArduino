@@ -165,7 +165,9 @@ USER_DIRS := $(sort $(dir $(USER_SRC)))
 USER_INC_DIRS := $(sort $(dir $(USER_INC)))
 
 # Use first flash definition for the board as default
-FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.FlashSize\.([^\.]+)=/){ print "$$1"; exit;}} print "NA";')
+FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.FlashSize\.([^\.]+)=/){ print "$$1"; exit;}}')
+# Same method for LwIPVariant
+LWIP_VARIANT ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.LwIPVariant\.([^\.]+)=/){ print "$$1"; exit;}}')
 
 # Handle possible changed state i.e. make command line parameters or changed git versions
 ifeq ($(OS), Darwin)
@@ -189,7 +191,7 @@ endif
 # The actual build commands are to be extracted from the Arduino description files
 ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
 $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
-	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) \"$(OS)\" $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
+	perl -e "$$PARSE_ARDUINO" $(BOARD) $(FLASH_DEF) \"$(OS)\" '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
 -include $(ARDUINO_MK)
 
@@ -242,6 +244,9 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	$(GEN_PART_COM)
 	$(ELF2BIN_COM)
 	$(SIZE_COM) | perl -e "$$MEM_USAGE" "$(MEM_FLASH)" "$(MEM_RAM)"
+ifneq ($(LWIP_INFO),)
+	printf "LwIPVariant: $(LWIP_INFO)\n"
+endif
 ifneq ($(FLASH_INFO),)
 	printf "Flash size: $(FLASH_INFO)\n\n"
 endif
@@ -354,6 +359,8 @@ help:
 	echo "  UPLOAD_SPEED         Serial flashing baud rate. Default: '$(UPLOAD_SPEED)'"
 	echo "  FLASH_FILE           File name for dump and restore flash operations"
 	echo "                          Default: '$(FLASH_FILE)'"
+	echo "  LWIP_VARIANT         Use specified variant of the lwip library when applicable"
+	echo "                         Default: $(LWIP_VARIANT) ($(LWIP_INFO))"
 	echo "  VERBOSE              Set to 1 to get full printout of the build"
 	echo "  SINGLE_THREAD        Use only one build thread"
 	echo
@@ -366,8 +373,9 @@ all: $(BUILD_DIR) $(ARDUINO_MK) $(BUILD_INFO_H) prebuild $(MAIN_EXE)
 
 prebuild:
 ifdef USE_PREBUILD
-	$(PREBUILD_COM)
+	$(CORE_PREBUILD)
 endif
+	$(SKETCH_PREBUILD)
 
 # Include all available dependencies
 -include $(wildcard $(BUILD_DIR)/*$(DEP_EXT))
@@ -391,6 +399,7 @@ define PARSE_ARDUINO
 my $$board = shift;
 my $$flashSize = shift;
 my $$os = (shift =~ /Windows_NT/) ? "windows" : "linux";
+my $$lwipvariant = shift;
 my %v;
 
 sub def_var {
@@ -419,6 +428,7 @@ foreach my $$fn (@ARGV) {
       $$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.ResetMethod\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.FlashMode\.[^\.]+\.//;
+			$$key =~ s/$$board\.menu\.LwIPVariant\.$$lwipvariant\.//;
       $$key =~ s/^$$board\.//;
       $$v{$$key} ||= $$val;
       $$v{$$1} = $$v{$$key} if $$key =~ /(.+)\.$$os$$/;
@@ -477,10 +487,12 @@ my $$val = $$v{'recipe.hooks.core.prebuild.1.pattern'};
 $$val =~ s/bash -c "(.+)"/$$1/;
 $$val =~ s/(#define .+0x)(\`)/"\\$$1\"$$2/;
 $$val =~ s/(\\)//;
-print "PREBUILD_COM=$$val\n";
+print "CORE_PREBUILD=$$val\n";
+print "SKETCH_PREBUILD=$$v{'recipe.hooks.sketch.prebuild.1.pattern'}\n";
 print "MEM_FLASH=$$v{'recipe.size.regex'}\n";
 print "MEM_RAM=$$v{'recipe.size.regex.data'}\n";
-print "FLASH_INFO=$$v{'menu.FlashSize.' . $$flashSize}\n"
+print "FLASH_INFO=$$v{'menu.FlashSize.' . $$flashSize}\n";
+print "LWIP_INFO=$$v{'menu.LwIPVariant.' . $$lwipvariant}\n";
 endef
 export PARSE_ARDUINO
 
