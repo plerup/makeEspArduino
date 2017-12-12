@@ -98,7 +98,7 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
-ESPTOOL_PY ?= $(shell which esptool.py)
+ESPTOOL_PY ?= "$(shell which esptool.py)"
 ifneq ($(ESPTOOL_PY),)
   # esptool.py exists, use it for esp8266 flash operations
   ESPTOOL_PY += --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
