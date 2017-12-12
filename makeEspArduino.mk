@@ -80,7 +80,7 @@ ifndef ESP_ROOT
   ifeq ($(ESP_ROOT),)
     $(error No installed version of $(CHIP) Arduino found)
   endif
-  ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
+  ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d= | sed 's.\\./.g')/libraries
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-lx106-elf-gcc/*))
@@ -131,6 +131,8 @@ ifeq ($(OS), Windows_NT)
   SKETCH := $(shell cygpath -m $(SKETCH))
 endif
 
+SKETCH_DIR = $(dir $(SKETCH))
+
 # Build file extensions
 OBJ_EXT = .o
 DEP_EXT = .d
@@ -151,12 +153,12 @@ CORE_LIB = $(BUILD_DIR)/arduino.ar
 # User defined compilation units and directories
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
+  USER_LIB_SEARCH_FILES := $(shell find $(SKETCH_DIR) -regextype posix-egrep -regex ".*\.(h|c|cpp|ino)")
   LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);' \
-	                        "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH))
+	                        "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(USER_LIB_SEARCH_FILES))
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
-SKETCH_DIR = $(dir $(SKETCH))
 USER_INC := $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(dir $(LIBS)) -name "*.h"))
 USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp"))
 # Object file suffix seems to be significant for the linker...
