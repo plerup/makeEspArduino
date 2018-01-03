@@ -168,7 +168,7 @@ USER_INC_DIRS := $(sort $(dir $(USER_INC)))
 FLASH_DEF_MATCH = $(if $(filter $(CHIP), esp32),build\.flash_size=(\S+),menu\.FlashSize\.([^\.]+)=(.+))
 FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.$(FLASH_DEF_MATCH)/){ print "$$1"; exit;}}')
 # Same method for LwIPVariant
-LWIP_VARIANT ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.LwIPVariant\.([^\.]+)=/){ print "$$1"; exit;}}')
+LWIP_VARIANT ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.LwIPVariant\.([^\.=]+)=/){ print "$$1"; exit;}}')
 
 # Handle possible changed state i.e. make command line parameters or changed git versions
 ifeq ($(OS), Darwin)
@@ -184,7 +184,7 @@ ifeq ($(IGNORE_STATE),)
   PREV_STATE_INF := $(if $(wildcard $(STATE_LOG)),$(shell cat $(STATE_LOG)),$(STATE_INF))
   ifneq ($(PREV_STATE_INF),$(STATE_INF))
     $(info * Build state has changed, doing a full rebuild *)
-    $(shell rm $(ARDUINO_MK))
+    $(shell rm -rf $(BUILD_DIR)/*)
   endif
   STATE_SAVE := $(shell mkdir -p $(BUILD_DIR) ; echo '$(STATE_INF)' >$(STATE_LOG))
 endif
