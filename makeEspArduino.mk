@@ -80,8 +80,15 @@ ifndef ESP_ROOT
   ifeq ($(ESP_ROOT),)
     $(error No installed version of $(CHIP) Arduino found)
   endif
-  ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
-  ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
+
+  ifeq ($(OS), Windows_NT)
+	ARDUINO_LIBS_MIXED =  $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
+	ARDUINO_LIBS = $(shell cygpath -m $(ARDUINO_LIBS_MIXED))
+  else
+	ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
+  endif
+
+ ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-lx106-elf-gcc/*))
   ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool/*))
