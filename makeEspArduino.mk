@@ -105,7 +105,12 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
+ifeq ($(OS), Windows_NT)
+ESPTOOL_PY ?= $(shell cygpath -m $(shell which esptool.py))
+else
 ESPTOOL_PY ?= $(shell which esptool.py)
+endif
+
 ifneq ($(ESPTOOL_PY),)
   # esptool.py exists, use it for esp8266 flash operations
   ESPTOOL_PY += --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
@@ -125,7 +130,13 @@ SKETCH := $(realpath $(firstword \
 ifeq ($(wildcard $(SKETCH)),)
   $(error Sketch $(SKETCH) not found)
 endif
-SRC_GIT_VERSION := $(call git_description,$(dir $(SKETCH)))
+
+ifeq ($(OS), Windows_NT)
+	SRC_GIT_VERSION := $(call git_description,$(shell cygpath -m $(dir $(SKETCH))))
+else
+	SRC_GIT_VERSION := $(call git_description,$(dir $(SKETCH)))
+endif
+
 
 # Main output definitions
 MAIN_NAME := $(basename $(notdir $(SKETCH)))
