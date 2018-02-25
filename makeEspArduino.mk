@@ -59,13 +59,18 @@ BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
 #====================================================================================
 
 START_TIME := $(shell perl -e "print time();")
+OS ?= $(shell uname -s)
 
 # Utility functions
 git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null || echo Unknown)
 time_string = $(shell date +$(1))
+ifeq ($(OS), Darwin)
+  find_files = $(shell find -E $2 -regex ".*\.($1)")
+else
+  find_files = $(shell find $2 -regextype posix-egrep -regex ".*\.($1)")
+endif
 
 # ESP Arduino directories
-OS ?= $(shell uname -s)
 ifndef ESP_ROOT
   # Location not defined, find and use possible version in the Arduino IDE installation
   ifeq ($(OS), Windows_NT)
@@ -98,23 +103,23 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
-ESPTOOL_PY ?= $(shell which esptool.py)
+ESPTOOL_PY ?= $(shell which esptool.py 2>/dev/null)
 ifneq ($(ESPTOOL_PY),)
   # esptool.py exists, use it for esp8266 flash operations
-  ESPTOOL_PY += --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
+  ESPTOOL_PY := "$(ESPTOOL_PY)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
   ifeq ($(CHIP),esp8266)
    UPLOAD_COM = $(ESPTOOL_PY) -a soft_reset write_flash 0x00000 $(BUILD_DIR)/$(MAIN_NAME).bin
    FS_UPLOAD_COM = $(ESPTOOL_PY)  --port $(UPLOAD_PORT) --baud $(UPLOAD_SPEED) -a soft_reset write_flash $(SPIFFS_START) $(FS_IMAGE)
   endif
 endif
 
-# Search for sketch if not defined
-SKETCH := $(realpath $(firstword \
-  $(SKETCH) \
-  $(wildcard *.ino) \
-  $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino) \
-  ) \
-)
+ifdef DEMO
+  SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino)
+endif
+SKETCH ?= $(wildcard *.ino)
+ifeq ($(SKETCH),)
+  $(error No sketch specified or found. Use "DEMO=1" for testing)
+endif
 ifeq ($(wildcard $(SKETCH)),)
   $(error Sketch $(SKETCH) not found)
 endif
@@ -126,9 +131,10 @@ MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
 FS_IMAGE = $(BUILD_DIR)/FS.spiffs
 
 ifeq ($(OS), Windows_NT)
-  # Adjust critical paths
+  # Adjust some paths for cygwin
   BUILD_DIR := $(shell cygpath -m $(BUILD_DIR))
   SKETCH := $(shell cygpath -m $(SKETCH))
+  ARDUINO_LIBS := $(shell cygpath -m $(ARDUINO_LIBS))
 endif
 
 # Build file extensions
@@ -144,21 +150,21 @@ HTTP_TOOL ?= curl
 
 # Core source files
 CORE_DIR = $(ESP_ROOT)/cores/$(CHIP)
-CORE_SRC := $(shell find $(CORE_DIR) -name "*.S" -o -name "*.c" -o -name "*.cpp")
+CORE_SRC := $(call find_files,S|c|cpp,$(CORE_DIR))
 CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
 
+SKETCH_DIR = $(dir $(SKETCH))
 # User defined compilation units and directories
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
   LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);' \
-	                        "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH))
+	                        "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp,$(SKETCH_DIR)))
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
-SKETCH_DIR = $(dir $(SKETCH))
-USER_INC := $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(dir $(LIBS)) -name "*.h"))
-USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(shell find $(SKETCH_DIR) $(LIBS) -name "*.S" -o -name "*.c" -o -name "*.cpp"))
+USER_INC := $(filter-out $(IGNORE_PATTERN),$(call find_files,h,$(SKETCH_DIR) $(dir $(LIBS))))
+USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp,$(SKETCH_DIR) $(LIBS)))
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
@@ -296,7 +302,7 @@ dump_fs:
 
 restore_flash:
 	echo Restoring flash memory from file: $(FLASH_FILE)
-	$(ESPTOOL_PY) write_flash -fs $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";print ($$2 eq "K" ? 2 : $$1*8);' $(FLASH_DEF))m -fm $(FLASH_MODE) -ff $(FLASH_SPEED)m 0 $(FLASH_FILE)
+	$(ESPTOOL_PY) -a soft_reset write_flash 0 $(FLASH_FILE)
 
 erase_flash:
 	$(ESPTOOL_PY) erase_flash

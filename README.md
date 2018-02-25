@@ -35,7 +35,7 @@ The actual build commands (compile, link etc.) are extracted from the Arduino de
 Uploading of the built binary can be made via serial channel (esptool), ota (espota.py) or http (curl). Which method to use is controlled by makefile target selection. By default the serial channel is used.
 
 #### Note about ESP32
-It is still early days for the ESP32/Arduino environment and some functionality is still missing, most notably the SPIFFS file system.
+Some functionality for ESP32 may be missing, most notably the SPIFFS file system operations.
 
 
 #### Installing
@@ -52,10 +52,10 @@ Then start cloning the makeEspArduino repository.
 After this you can test it. Attach your ESP8266 board and execute the following commands:
 
     cd makeEspArduino
-    make -f makeEspArduino.mk flash
+    make -f makeEspArduino.mk DEMO=1 flash
 
-After this you will have the example "HelloServer" in your ESP. This is the default demo example which the makefile chooses
-if no sketch has been specified.
+The DEMO definition makes the the makefile choose a typical demo sketch from the ESP examples.
+After this you will have the example downloaded onto in your ESP.
 
 If you want to use a clone of the environment instead then do something like this:
 
@@ -76,13 +76,13 @@ Then install the required environment tools by issuing the following commands:
 To test this installation you have to specify the location of the environment when running make
 
     cd ~/makeEspArduino
-    make -f makeEspArduino.mk flash ESP_ROOT=~/esp8266
+    make -f makeEspArduino.mk ESP_ROOT=~/esp8266 DEMO=1 flash
 
 For ESP32 project the current setup doesn't enable automatic detection of the esp32 environment and hence the variable ESP_ROOT must always be defined.
 
 When building ESP32 projects the variable CHIP must also always be defined, example:
 
-    make -f makeEspArduino.mk flash ESP_ROOT=~/esp32 CHIP=esp32
+    make -f makeEspArduino.mk ESP_ROOT=~/esp32 CHIP=esp32 DEMO=1 flash
 
 #### Getting help
 
@@ -131,12 +131,11 @@ the makefile doesn't need to know the location of makeEspArduino.mk, more about 
 
 The most important variables in the makefile are listed below:
 
-**SKETCH** is the path to the main source file. As stated above, if this is missing then makeEspArduino will try to locate it in the current directory. If no file is found
-an example sketch from will be used.
+**SKETCH** is the path to the main source file. As stated above, if this is missing then makeEspArduino will try to locate it in the current directory.
 
 **LIBS** is a variable which can contain a list of explicit source files and/or directories with multiple source files, which are to be compiled and used as libraries
 in the build. Please note that there is no restrictions regarding location and naming of these files as in the Arduino IDE build system.
-If you want to achieve automatic search for libraries leave this variable undefined. In this case makeEspArduino will try to recursively locate all required libraries by parsing the include statements in the sketch source file. Libraries in the ESP/Arduino library structure and the standard Arduino library tree will be searched. It is also possible to add other directories/file to search by defining the variable **CUSTOM_LIBS**.
+If you want to achieve automatic search for libraries leave this variable undefined. In this case makeEspArduino will try to recursively locate all required libraries by parsing the include statements in the sketch source file (and other source files in the sketch directory). Libraries in the ESP/Arduino library structure and the standard Arduino library tree will be searched. It is also possible to add other directories/file to search by defining the variable **CUSTOM_LIBS**.
 Please note though that if you want stringent version controlled builds, then define **LIBS** yourself and set it to version controlled directories/files.
 All source files located in the same directory as the sketch will also be included automatically. The variable **EXCLUDE_DIRS** can be setup to exclude one or several directories from the wildcard search.
 
