@@ -106,12 +106,15 @@ endif
 ESPTOOL_PY ?= $(shell which esptool.py 2>/dev/null)
 ifneq ($(ESPTOOL_PY),)
   # esptool.py exists, use it for esp8266 flash operations
-  ESPTOOL_PY := "$(ESPTOOL_PY)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
+  ESPTOOL_PY_ := $(ESPTOOL_PY)
+  ESPTOOL_PY = echo Using: $(UPLOAD_PORT) @ $(UPLOAD_SPEED) && "$(ESPTOOL_PY_)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
   ifeq ($(CHIP),esp8266)
    UPLOAD_COM = $(ESPTOOL_PY) -a soft_reset write_flash 0x00000 $(BUILD_DIR)/$(MAIN_NAME).bin
-   FS_UPLOAD_COM = $(ESPTOOL_PY)  --port $(UPLOAD_PORT) --baud $(UPLOAD_SPEED) -a soft_reset write_flash $(SPIFFS_START) $(FS_IMAGE)
+   FS_UPLOAD_COM = $(ESPTOOL_PY) -a soft_reset write_flash $(SPIFFS_START) $(FS_IMAGE)
   endif
 endif
+
+
 
 ifdef DEMO
   SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino)
