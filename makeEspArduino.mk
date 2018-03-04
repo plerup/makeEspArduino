@@ -94,6 +94,7 @@ ifndef ESP_ROOT
 else
   # Location defined, assume it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
+  MKSPIFFS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/mkspiffs/*))
 endif
 ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
@@ -103,19 +104,20 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
-ESPTOOL_PY ?= $(shell which esptool.py 2>/dev/null)
-ifneq ($(ESPTOOL_PY),)
-  # esptool.py exists, use it for esp8266 flash operations
-  ESPTOOL_PY_ := $(ESPTOOL_PY)
-  ESPTOOL_PY = echo Using: $(UPLOAD_PORT) @ $(UPLOAD_SPEED) && "$(ESPTOOL_PY_)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT)
+ESPTOOL ?= $(shell which esptool.py 2>/dev/null || which esptool 2>/dev/null)
+ifneq ($(ESPTOOL),)
+  # esptool exists in path, overide defaults and use it for esp8266 flash operations
   ifeq ($(CHIP),esp8266)
-   UPLOAD_COM = $(ESPTOOL_PY) -a soft_reset write_flash 0x00000 $(BUILD_DIR)/$(MAIN_NAME).bin
-   FS_UPLOAD_COM = $(ESPTOOL_PY) -a soft_reset write_flash $(SPIFFS_START) $(FS_IMAGE)
+    ESPTOOL_COM = $(ESPTOOL)
+    UPLOAD_COM = $(ESPTOOL_PATTERN) -a soft_reset write_flash 0x00000 $(BUILD_DIR)/$(MAIN_NAME).bin
+    FS_UPLOAD_COM = $(ESPTOOL_PATTERN) -a soft_reset write_flash $(SPIFFS_START) $(FS_IMAGE)
   endif
 endif
+ESPTOOL_PATTERN = echo Using: $(UPLOAD_PORT) @ $(UPLOAD_SPEED) && "$(ESPTOOL_COM)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(CHIP)
 
-
-
+ifeq ($(MAKECMDGOALS),help)
+  DEMO=1
+endif
 ifdef DEMO
   SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino)
 endif
@@ -137,7 +139,9 @@ ifeq ($(OS), Windows_NT)
   # Adjust some paths for cygwin
   BUILD_DIR := $(shell cygpath -m $(BUILD_DIR))
   SKETCH := $(shell cygpath -m $(SKETCH))
-  ARDUINO_LIBS := $(shell cygpath -m $(ARDUINO_LIBS))
+  ifdef ARDUINO_LIBS
+    ARDUINO_LIBS := $(shell cygpath -m $(ARDUINO_LIBS))
+  endif
 endif
 
 # Build file extensions
@@ -273,13 +277,8 @@ http: all
 	echo "\n"
 
 $(FS_IMAGE): $(ARDUINO_MK) $(wildcard $(FS_DIR)/*)
-ifneq ($(CHIP),esp32)
 	echo Generating filesystem image: $(FS_IMAGE)
 	$(MKSPIFFS_COM)
-else
-	echo No SPIFFS function available for $(CHIP)
-	exit 1
-endif
 
 fs: $(FS_IMAGE)
 
@@ -293,11 +292,11 @@ ota_fs: $(FS_IMAGE)
 FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
 dump_flash:
 	echo Dumping flash memory to file: $(FLASH_FILE)
-	$(ESPTOOL_PY) read_flash 0 $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";$$mem_size=$$1*1024;$$mem_size*=1024 if $$2 eq "M";print $$mem_size;' $(FLASH_DEF)) $(FLASH_FILE)
+	$(ESPTOOL_PATTERN) read_flash 0 $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";$$mem_size=$$1*1024;$$mem_size*=1024 if $$2 eq "M";print $$mem_size;' $(FLASH_DEF)) $(FLASH_FILE)
 
 dump_fs:
 	echo Dumping flash file system to directory: $(FS_REST_DIR)
-	-$(ESPTOOL_PY) read_flash $(SPIFFS_START) $(SPIFFS_SIZE) $(FS_IMAGE)
+	-$(ESPTOOL_PATTERN) read_flash $(SPIFFS_START) $(SPIFFS_SIZE) $(FS_IMAGE)
 	mkdir -p $(FS_REST_DIR)
 	echo
 	echo == Files ==
@@ -305,10 +304,10 @@ dump_fs:
 
 restore_flash:
 	echo Restoring flash memory from file: $(FLASH_FILE)
-	$(ESPTOOL_PY) -a soft_reset write_flash 0 $(FLASH_FILE)
+	$(ESPTOOL_PATTERN) -a soft_reset write_flash 0 $(FLASH_FILE)
 
 erase_flash:
-	$(ESPTOOL_PY) erase_flash
+	$(ESPTOOL_PATTERN) erase_flash
 
 clean:
 	echo Removing all build files
@@ -350,9 +349,8 @@ help:
 	echo "Configurable parameters:"
 	echo "  SKETCH               Main source file"
 	echo "                         If not specified the first sketch in current"
-	echo "                         directory will be used. If none is found there,"
-	echo "                         a demo example will be used instead."
-	echo "  LIBS                   Includes in the sketch file of libraries from within"
+	echo "                         directory will be used."
+	echo "  LIBS                 Includes in the sketch file of libraries from within"
 	echo "                         the ESP Arduino directories are automatically"
 	echo "                         detected. If this is not enough, define this"
 	echo "                         variable with all libraries or directories needed."
@@ -429,6 +427,7 @@ $$v{'object_files'} = '$$^ $$(BUILD_INFO_OBJ)';
 foreach my $$fn (@ARGV) {
    open($$f, $$fn) || die "Failed to open: $$fn\n";
    while (<$$f>) {
+      s/\s+$$//;
       next unless /^(\w[\w\-\.]+)=(.*)/;
       my ($$key, $$val) =($$1, $$2);
       $$board_defined = 1 if $$key eq "$$board.name";
@@ -447,10 +446,8 @@ foreach my $$fn (@ARGV) {
 }
 $$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
-$$v{'runtime.tools.mkspiffs.path'} ||= '$$(MKSPIFFS_PATH)';
 
 die "* Unkown board $$board\n" unless $$board_defined;
-
 print "# Board definitions\n";
 def_var('build.f_cpu', 'F_CPU');
 def_var('build.flash_mode', 'FLASH_MODE');
@@ -484,14 +481,28 @@ print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
 print "GEN_PART_COM=$$v{'recipe.objcopy.eep.pattern'}\n";
 print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
-my $$spiffs_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
-print "MKSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$spiffs_size -c \$$(FS_DIR) \$$(FS_IMAGE)\n";
-print "RESTSPIFFS_COM=$$v{'tools.mkspiffs.path'}/$$v{'tools.mkspiffs.cmd'} -b $$v{'build.spiffs_blocksize'} -s $$spiffs_size -u \$$(FS_REST_DIR) \$$(FS_IMAGE)\n";
+print "ESPTOOL_COM?=$$v{'tools.esptool.path'}/$$v{'tools.esptool.cmd'}\n";
 print "UPLOAD_COM?=$$v{'tools.esptool.upload.pattern'}\n";
-print "SPIFFS_START=$$v{'build.spiffs_start'}\n";
-print "SPIFFS_SIZE=$$spiffs_size\n";
+
+if ($$v{'build.spiffs_start'}) {
+  print "SPIFFS_START?=$$v{'build.spiffs_start'}\n";
+	my $$spiffs_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
+  print "SPIFFS_SIZE?=$$spiffs_size\n";
+} elsif ($$v{'build.partitions'}) {
+  print "PART_FILE=$$1\n" if $$v{'recipe.objcopy.eep.pattern'} =~ /\"([^\"]+\.csv)\"/;
+  print "COMMA=,\n";
+  print "SPIFFS_SPEC:=\$$(subst \$$(COMMA), ,\$$(shell grep spiffs \$$(PART_FILE)))\n";
+  print "SPIFFS_START:=\$$(word 4,\$$(SPIFFS_SPEC))\n";
+  print "SPIFFS_SIZE:=\$$(word 5,\$$(SPIFFS_SPEC))\n";
+}
+$$v{'build.spiffs_blocksize'} ||= "4096";
+print "SPIFFS_BLOCK_SIZE?=$$v{'build.spiffs_blocksize'}\n";
+print "MKSPIFFS_COM?=\"\$$(MKSPIFFS_PATH)\" -b \$$(SPIFFS_BLOCK_SIZE) -s \$$(SPIFFS_SIZE) -c \$$(FS_DIR) \$$(FS_IMAGE)\n";
+print "RESTSPIFFS_COM?=\"\$$(MKSPIFFS_PATH)\" -b \$$(SPIFFS_BLOCK_SIZE) -s \$$(SPIFFS_SIZE) -u \$$(FS_REST_DIR) \$$(FS_IMAGE)\n";
+
 my $$fs_upload_com = $$v{'tools.esptool.upload.pattern'};
-$$fs_upload_com =~ s/(.+ -ca) .+/$$1 $$v{'build.spiffs_start'} -cf \$$(FS_IMAGE)/;
+$$fs_upload_com =~ s/(.+ -ca) .+/$$1 \$$(SPIFFS_START) -cf \$$(FS_IMAGE)/;
+$$fs_upload_com =~ s/(.+ --flash_size detect) .+/$$1 \$$(SPIFFS_START) \$$(FS_IMAGE)/;
 print "FS_UPLOAD_COM?=$$fs_upload_com\n";
 my $$val = $$v{'recipe.hooks.core.prebuild.1.pattern'};
 $$val =~ s/bash -c "(.+)"/$$1/;
