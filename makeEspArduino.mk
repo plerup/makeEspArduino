@@ -311,7 +311,7 @@ erase_flash:
 
 clean:
 	echo Removing all build files
-	rm  -rf $(BUILD_DIR)/*
+	rm  -rf $(BUILD_DIR)/* $(FILES_TO_CLEAN)
 
 list_boards:
 	echo === Available boards ===
