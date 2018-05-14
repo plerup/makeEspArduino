@@ -189,7 +189,7 @@ ifeq ($(OS), Darwin)
 else
   CMD_LINE := $(shell tr "\0" " " </proc/$$PPID/cmdline)
 endif
-IGNORE_STATE := $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards),1,)
+IGNORE_STATE ?= $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards),1,)
 ifeq ($(IGNORE_STATE),)
   STATE_LOG := $(BUILD_DIR)/state.txt
   STATE_INF := $(strip $(foreach par,$(CMD_LINE),$(if $(findstring =,$(par)),$(par),))) \
@@ -250,6 +250,7 @@ BUILD_TIME = $(call time_string,"%H:%M:%S")
 
 $(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
 	echo Linking $(MAIN_EXE)
+	$(LINK_PREBUILD)
 	echo "  Versions: $(SRC_GIT_VERSION), $(ESP_ARDUINO_VERSION)"
 	echo 	'#include <buildinfo.h>' >$(BUILD_INFO_CPP)
 	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_ARDUINO_VERSION)"};' >>$(BUILD_INFO_CPP)
@@ -458,6 +459,7 @@ def_var('compiler.warning_flags', 'COMP_WARNINGS');
 $$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 $$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
+$$v{'recipe.hooks.linking.prelink.1.pattern'} =~ s/\{build.vtable_flags\}/\$$(VTABLE_FLAGS)/;
 $$v{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$$1\}/g;
 $$v{'compiler.cpreprocessor.flags'} .= " \$$(C_PRE_PROC_FLAGS)";
 $$v{'build.extra_flags'} .= " \$$(BUILD_EXTRA_FLAGS)";
@@ -478,6 +480,8 @@ print "CPP_COM=$$v{'recipe.cpp.o.pattern'}\n";
 print "S_COM=$$v{'recipe.S.o.pattern'}\n";
 print "AR_COM=$$v{'recipe.ar.pattern'}\n";
 print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
+print "PART_FILE?=$$1\n" if $$v{'recipe.objcopy.eep.pattern'} =~ /\"([^\"]+\.csv)\"/;
+$$v{'recipe.objcopy.eep.pattern'} =~ s/\"([^\"]+\.csv)\"/\$$(PART_FILE)/;
 print "GEN_PART_COM=$$v{'recipe.objcopy.eep.pattern'}\n";
 print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
@@ -489,7 +493,6 @@ if ($$v{'build.spiffs_start'}) {
 	my $$spiffs_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
   print "SPIFFS_SIZE?=$$spiffs_size\n";
 } elsif ($$v{'build.partitions'}) {
-  print "PART_FILE=$$1\n" if $$v{'recipe.objcopy.eep.pattern'} =~ /\"([^\"]+\.csv)\"/;
   print "COMMA=,\n";
   print "SPIFFS_SPEC:=\$$(subst \$$(COMMA), ,\$$(shell grep spiffs \$$(PART_FILE)))\n";
   print "SPIFFS_START:=\$$(word 4,\$$(SPIFFS_SPEC))\n";
@@ -510,6 +513,8 @@ $$val =~ s/(#define .+0x)(\`)/"\\$$1\"$$2/;
 $$val =~ s/(\\)//;
 print "CORE_PREBUILD=$$val\n";
 print "SKETCH_PREBUILD=$$v{'recipe.hooks.sketch.prebuild.1.pattern'}\n";
+print "VTABLE_FLAGS?=$$v{'build.vtable_flags'}\n";
+print "LINK_PREBUILD=$$v{'recipe.hooks.linking.prelink.1.pattern'}\n";
 print "MEM_FLASH=$$v{'recipe.size.regex'}\n";
 print "MEM_RAM=$$v{'recipe.size.regex.data'}\n";
 print "FLASH_INFO=$$v{'menu.FlashSize.' . $$flashSize}\n";
