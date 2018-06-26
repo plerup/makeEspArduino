@@ -289,6 +289,8 @@ upload_fs flash_fs: $(FS_IMAGE)
 ota_fs: $(FS_IMAGE)
 	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -s -f $(FS_IMAGE)
 
+run: flash
+	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
 
 FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
 dump_flash:
@@ -312,7 +314,7 @@ erase_flash:
 
 clean:
 	echo Removing all build files
-	rm  -rf $(BUILD_DIR)/*
+	rm  -rf $(BUILD_DIR)/* $(FILES_TO_CLEAN)
 
 list_boards:
 	echo === Available boards ===
@@ -450,6 +452,7 @@ $$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
 
 die "* Unkown board $$board\n" unless $$board_defined;
 print "# Board definitions\n";
+def_var('build.code_debug', 'CORE_DEBUG_LEVEL');
 def_var('build.f_cpu', 'F_CPU');
 def_var('build.flash_mode', 'FLASH_MODE');
 def_var('build.flash_freq', 'FLASH_SPEED');
