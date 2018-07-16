@@ -14,7 +14,7 @@
 #====================================================================================
 
 #====================================================================================
-# Project specfic values
+# Project specific values
 #====================================================================================
 
 # Include possible project makefile. This can be used to override the defaults below
@@ -450,7 +450,7 @@ foreach my $$fn (@ARGV) {
 $$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
 
-die "* Unkown board $$board\n" unless $$board_defined;
+die "* Unknown board $$board\n" unless $$board_defined;
 print "# Board definitions\n";
 def_var('build.code_debug', 'CORE_DEBUG_LEVEL');
 def_var('build.f_cpu', 'F_CPU');
