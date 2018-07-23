@@ -197,7 +197,7 @@ ifeq ($(IGNORE_STATE),)
   PREV_STATE_INF := $(if $(wildcard $(STATE_LOG)),$(shell cat $(STATE_LOG)),$(STATE_INF))
   ifneq ($(PREV_STATE_INF),$(STATE_INF))
     $(info * Build state has changed, doing a full rebuild *)
-    $(shell rm -rf $(BUILD_DIR)/*)
+    $(shell rm -rf "$(BUILD_DIR)")
   endif
   STATE_SAVE := $(shell mkdir -p $(BUILD_DIR) ; echo '$(STATE_INF)' >$(STATE_LOG))
 endif
@@ -314,7 +314,7 @@ erase_flash:
 
 clean:
 	echo Removing all build files
-	rm  -rf $(BUILD_DIR)/* $(FILES_TO_CLEAN)
+	rm -rf "$(BUILD_DIR)" $(FILES_TO_CLEAN)
 
 list_boards:
 	echo === Available boards ===
