@@ -374,6 +374,7 @@ help:
 	echo "                         Default: $(LWIP_VARIANT) ($(LWIP_INFO))"
 	echo "  VERBOSE              Set to 1 to get full printout of the build"
 	echo "  SINGLE_THREAD        Use only one build thread"
+	echo "  NUM_OF_THREADS       Number of build threads. Default: $(NUM_OF_THREADS)"
 	echo
 
 $(BUILD_DIR):
@@ -393,9 +394,11 @@ endif
 
 .DEFAULT_GOAL = all
 
+NUM_OF_THREADS ?= $(shell cat /proc/cpuinfo | grep -c processor)
+
 ifndef SINGLE_THREAD
   # Use multithreaded builds by default
-  MAKEFLAGS += -j
+  MAKEFLAGS += -j $(NUM_OF_THREADS)
 endif
 
 ifndef VERBOSE
