@@ -133,6 +133,9 @@ The most important variables in the makefile are listed below:
 **LIBS** is a variable which can contain a list of explicit source files and/or directories with multiple source files, which are to be compiled and used as libraries
 in the build. Please note that there is no restrictions regarding location and naming of these files as in the Arduino IDE build system.
 If you want to achieve automatic search for libraries leave this variable undefined. In this case makeEspArduino will try to recursively locate all required libraries by parsing the include statements in the sketch source file (and other source files in the sketch directory). Libraries in the ESP/Arduino library structure and the standard Arduino library tree will be searched. It is also possible to add other directories/file to search by defining the variable **CUSTOM_LIBS**.
+
+Source files (.S, .c, .cpp) and libraries (.a) are valid to specify here either direct with a full file path or in wildcard via a directory name.
+
 Please note though that if you want stringent version controlled builds, then define **LIBS** yourself and set it to version controlled directories/files.
 All source files located in the same directory as the sketch will also be included automatically. The variable **EXCLUDE_DIRS** can be setup to exclude one or several directories from the wildcard search.
 
@@ -232,3 +235,12 @@ The rules are named **dump_flash** and **restore_flash**. The name of the output
 Example:
 
     espmake dump_flash FLASH_FILE=my_flash.bin
+
+
+#### Building an object file library
+
+It is also possible to build a library containing all the object files referenced in the build (excluding the sketch itself). This can e.g. be used to build separately compiled version controlled libraries which are then used in other build projects.
+
+Example:
+
+    espmake lib

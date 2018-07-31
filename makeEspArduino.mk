@@ -2,14 +2,12 @@
 # makeESPArduino
 #
 # A makefile for ESP8286 and ESP32 Arduino projects.
-# Edit the contents of this file to suit your project
-# or just include it and override the applicable macros.
 #
 # License: LGPL 2.1
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
-# Copyright (c) 2016-2017 Peter Lerup. All rights reserved.
+# Copyright (c) 2016-2018 Peter Lerup. All rights reserved.
 #
 #====================================================================================
 
@@ -176,6 +174,7 @@ USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp,$
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
 USER_INC_DIRS := $(sort $(dir $(USER_INC)))
+USER_LIBS := $(filter-out $(IGNORE_PATTERN),$(call find_files,a,$(SKETCH_DIR) $(LIBS)))
 
 # Use first flash definition for the board as default
 FLASH_DEF_MATCH = $(if $(filter $(CHIP), esp32),build\.flash_size=(\S+),menu\.FlashSize\.([^\.]+)=(.+))
@@ -243,12 +242,12 @@ $(BUILD_DIR)/%.S$(OBJ_EXT): %.S $(ARDUINO_MK)
 $(CORE_LIB): $(CORE_OBJ)
 	echo  Creating core archive
 	rm -f $@
-	$(AR_COM) $^
+	$(CORE_LIB_COM) $^
 
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
 
-$(MAIN_EXE): $(CORE_LIB) $(USER_OBJ)
+$(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ)
 	echo Linking $(MAIN_EXE)
 	$(LINK_PREBUILD)
 	echo "  Versions: $(SRC_GIT_VERSION), $(ESP_ARDUINO_VERSION)"
@@ -312,6 +311,12 @@ restore_flash:
 erase_flash:
 	$(ESPTOOL_PATTERN) erase_flash
 
+LIB_OUT_FILE ?= $(BUILD_DIR)/$(MAIN_NAME).a
+lib: $(filter-out $(BUILD_DIR)/$(MAIN_NAME)_.cpp$(OBJ_EXT),$(USER_OBJ))
+	echo Building library $(LIB_OUT_FILE)
+	rm -f $(LIB_OUT_FILE)
+	$(LIB_COM) cru $(LIB_OUT_FILE) $^
+
 clean:
 	echo Removing all build files
 	rm -rf "$(BUILD_DIR)" $(FILES_TO_CLEAN)
@@ -336,6 +341,7 @@ help:
 	echo "The following targets are available:"
 	echo "  all                  (default) Build the project application"
 	echo "  clean                Remove all intermediate build files"
+	echo "  lib                  Build a library with all involved object files"
 	echo "  flash                Build and and flash the project application"
 	echo "  flash_fs             Build and and flash file system (when applicable)"
 	echo "  ota                  Build and and flash via OTA"
@@ -373,7 +379,8 @@ help:
 	echo "  LWIP_VARIANT         Use specified variant of the lwip library when applicable"
 	echo "                         Default: $(LWIP_VARIANT) ($(LWIP_INFO))"
 	echo "  VERBOSE              Set to 1 to get full printout of the build"
-	echo "  SINGLE_THREAD        Use only one build thread"
+	echo "  BUILD_THREADS        Number of parallel build threads"
+	echo "                         Default: Maximum possible, based on number of CPUs"
 	echo
 
 $(BUILD_DIR):
@@ -393,10 +400,7 @@ endif
 
 .DEFAULT_GOAL = all
 
-ifndef SINGLE_THREAD
-  # Use multithreaded builds by default
-  MAKEFLAGS += -j
-endif
+MAKEFLAGS += -j $(BUILD_THREADS)
 
 ifndef VERBOSE
   # Set silent mode as default
@@ -481,7 +485,8 @@ print "# Commands\n";
 print "C_COM=$$v{'recipe.c.o.pattern'}\n";
 print "CPP_COM=$$v{'recipe.cpp.o.pattern'}\n";
 print "S_COM=$$v{'recipe.S.o.pattern'}\n";
-print "AR_COM=$$v{'recipe.ar.pattern'}\n";
+print "LIB_COM=\"$$v{'compiler.path'}$$v{'compiler.ar.cmd'}\"\n";
+print "CORE_LIB_COM=$$v{'recipe.ar.pattern'}\n";
 print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
 print "PART_FILE?=$$1\n" if $$v{'recipe.objcopy.eep.pattern'} =~ /\"([^\"]+\.csv)\"/;
 $$v{'recipe.objcopy.eep.pattern'} =~ s/\"([^\"]+\.csv)\"/\$$(PART_FILE)/;
