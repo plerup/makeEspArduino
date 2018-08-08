@@ -400,6 +400,7 @@ endif
 
 .DEFAULT_GOAL = all
 
+BUILD_THREADS ?= $(shell grep -c '^processor' /proc/cpuinfo)
 MAKEFLAGS += -j $(BUILD_THREADS)
 
 ifndef VERBOSE
