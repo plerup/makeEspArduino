@@ -312,7 +312,9 @@ erase_flash:
 	$(ESPTOOL_PATTERN) erase_flash
 
 LIB_OUT_FILE ?= $(BUILD_DIR)/$(MAIN_NAME).a
-lib: $(filter-out $(BUILD_DIR)/$(MAIN_NAME)_.cpp$(OBJ_EXT),$(USER_OBJ))
+.PHONY: lib
+lib: $(LIB_OUT_FILE)
+$(LIB_OUT_FILE): $(filter-out $(BUILD_DIR)/$(MAIN_NAME)_.cpp$(OBJ_EXT),$(USER_OBJ))
 	echo Building library $(LIB_OUT_FILE)
 	rm -f $(LIB_OUT_FILE)
 	$(LIB_COM) cru $(LIB_OUT_FILE) $^
@@ -398,8 +400,14 @@ endif
 # Include all available dependencies
 -include $(wildcard $(BUILD_DIR)/*$(DEP_EXT))
 
-.DEFAULT_GOAL = all
+DEFAULT_GOAL ?= all
+.DEFAULT_GOAL = $(DEFAULT_GOAL)
 
+ifeq ($(OS), Darwin)
+  BUILD_THREADS ?= $(shell sysctl -n hw.ncpu)
+else
+  BUILD_THREADS ?= $(shell nproc)
+endif
 MAKEFLAGS += -j $(BUILD_THREADS)
 
 ifndef VERBOSE
