@@ -177,7 +177,7 @@ USER_INC_DIRS := $(sort $(dir $(USER_INC)))
 USER_LIBS := $(filter-out $(IGNORE_PATTERN),$(call find_files,a,$(SKETCH_DIR) $(LIBS)))
 
 # Use first flash definition for the board as default
-FLASH_DEF_MATCH = $(if $(filter $(CHIP), esp32),build\.flash_size=(\S+),menu\.FlashSize\.([^\.]+)=(.+))
+FLASH_DEF_MATCH = $(if $(filter $(CHIP), esp32),build\.flash_size=(\S+),menu\.(?:FlashSize|eesz)\.([^\.]+)=(.+))
 FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.$(FLASH_DEF_MATCH)/){ print "$$1"; exit;}}')
 # Same method for LwIPVariant
 LWIP_VARIANT ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.LwIPVariant\.([^\.=]+)=/){ print "$$1"; exit;}}')
@@ -438,6 +438,7 @@ $$v{'build.arch'} = uc('$(CHIP)');
 $$v{'build.project_name'} = '$$(MAIN_NAME)';
 $$v{'build.path'} = '$$(BUILD_DIR)';
 $$v{'object_files'} = '$$^ $$(BUILD_INFO_OBJ)';
+$$v{'archive_file_path'} = '$$(CORE_LIB)';
 
 foreach my $$fn (@ARGV) {
    open($$f, $$fn) || die "Failed to open: $$fn\n";
@@ -446,9 +447,9 @@ foreach my $$fn (@ARGV) {
       next unless /^(\w[\w\-\.]+)=(.*)/;
       my ($$key, $$val) =($$1, $$2);
       $$board_defined = 1 if $$key eq "$$board.name";
-      $$key =~ s/$$board\.menu\.FlashSize\.$$flashSize\.//;
+      $$key =~ s/$$board\.menu\.(?:FlashSize|eesz)\.$$flashSize\.//;
       $$key =~ s/$$board\.menu\.CpuFrequency\.[^\.]+\.//;
-      $$key =~ s/$$board\.menu\.FlashFreq\.[^\.]+\.//;
+      $$key =~ s/$$board\.menu\.(?:FlashFreq|xtal)\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.ResetMethod\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.FlashMode\.[^\.]+\.//;
