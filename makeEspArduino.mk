@@ -167,14 +167,14 @@ ifeq ($(LIBS),)
 	                        "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp,$(SKETCH_DIR)))
 endif
 
-IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
-USER_INC := $(filter-out $(IGNORE_PATTERN),$(call find_files,h,$(SKETCH_DIR) $(dir $(LIBS))))
-USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp,$(SKETCH_DIR) $(LIBS)))
+REMOVE_EXAMPLES = $(foreach v,$(1),$(if $(findstring examples,$(v)),,$(v)))
+USER_INC := $(call REMOVE_EXAMPLES,$(call find_files,h,$(SKETCH_DIR) $(dir $(LIBS))))
+USER_SRC := $(SKETCH) $(call REMOVE_EXAMPLES,$(call find_files,S|c|cpp,$(SKETCH_DIR) $(LIBS)))
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
 USER_INC_DIRS := $(sort $(dir $(USER_INC)))
-USER_LIBS := $(filter-out $(IGNORE_PATTERN),$(call find_files,a,$(SKETCH_DIR) $(LIBS)))
+USER_LIBS := $(call REMOVE_EXAMPLES,$(call find_files,a,$(SKETCH_DIR) $(LIBS)))
 
 # Use first flash definition for the board as default
 FLASH_DEF_MATCH = $(if $(filter $(CHIP), esp32),build\.flash_size=(\S+),menu\.(?:FlashSize|eesz)\.([^\.]+)=(.+))
