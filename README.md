@@ -75,6 +75,18 @@ To test this installation you have to specify the location of the environment wh
     cd ~/makeEspArduino
     make -f makeEspArduino.mk ESP_ROOT=~/esp8266 DEMO=1 flash
 
+Do the following to enable the build environment for ESP32.
+
+First must download the ESP32 environment.
+
+    cd ~
+    git clone https://github.com/espressif/arduino-esp32.git  esp32
+
+Then install the required environment tools by issuing the following commands:
+
+    cd tools
+    python get.py
+
 For ESP32 project the current setup doesn't enable automatic detection of the esp32 environment and hence the variable ESP_ROOT must always be defined.
 
 When building ESP32 projects the variable CHIP must also always be defined, example:
