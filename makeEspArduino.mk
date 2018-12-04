@@ -26,7 +26,7 @@ CHIP ?= esp8266
 BOARD ?= $(if $(filter $(CHIP), esp32),esp32,generic)
 
 # Serial flashing parameters
-UPLOAD_PORT ?= $(shell ls -1tr /dev/ttyUSB* 2>/dev/null | tail -1)
+UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
 UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
 UPLOAD_VERB ?= -v
 
@@ -56,7 +56,7 @@ BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
 # Standard build logic and values
 #====================================================================================
 
-START_TIME := $(shell perl -e "print time();")
+START_TIME := $(shell date +%s)
 OS ?= $(shell uname -s)
 
 # Utility functions
@@ -86,9 +86,9 @@ ifndef ESP_ROOT
   ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
-  COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-lx106-elf-gcc/*))
+  COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
   ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool/*))
-  MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*))
+  MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*/*))
 else
   # Location defined, assume it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
@@ -97,6 +97,10 @@ endif
 ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
 TOOLS_ROOT = $(ESP_ROOT)/tools
+
+ifeq ($(shell grep -o "$(BOARD).name" $(ESP_ROOT)/boards.txt 2>/dev/null),)
+  $(error Invalid board: $(BOARD))
+endif
 
 ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
@@ -119,7 +123,7 @@ endif
 ifdef DEMO
   SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino)
 endif
-SKETCH ?= $(wildcard *.ino)
+SKETCH ?= $(wildcard *.ino *.pde)
 ifeq ($(SKETCH),)
   $(error No sketch specified or found. Use "DEMO=1" for testing)
 endif
@@ -164,11 +168,26 @@ SKETCH_DIR = $(dir $(SKETCH))
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
   LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);' \
-	                        "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp,$(SKETCH_DIR)))
+                          "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp,$(SKETCH_DIR)))
+  ifneq ($(findstring /examples/,$(realpath $(SKETCH))),)
+    # Assume library example sketch, add the library directory unless it is an Arduino basic example
+    EX_LIB := $(shell perl -e 'print $$ARGV[0] if $$ARGV[0] =~ s/\/examples\/(?!\d\d\.).+//' $(realpath $(SKETCH)))
+    ifneq ($(EX_LIB),)
+      ifneq ($(wildcard $(EX_LIB)/src),)
+        # Library in src sub directory
+        EX_LIB := $(EX_LIB)/src
+      else
+        # Library at root. Avoid getting files from other examples
+        EXCLUDE_DIRS ?= $(EX_LIB)/examples
+      endif
+      LIBS += $(EX_LIB)
+    endif
+  endif
+
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
-USER_INC := $(filter-out $(IGNORE_PATTERN),$(call find_files,h,$(SKETCH_DIR) $(dir $(LIBS))))
+USER_INC := $(filter-out $(IGNORE_PATTERN),$(call find_files,h|hpp,$(SKETCH_DIR) $(dir $(LIBS))))
 USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp,$(SKETCH_DIR) $(LIBS)))
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
@@ -228,6 +247,10 @@ $(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H) $(ARDUINO_MK)
 	$(CPP_COM) $(CPP_EXTRA) $< -o $@
 
 $(BUILD_DIR)/%_.cpp$(OBJ_EXT): %.ino $(BUILD_INFO_H) $(ARDUINO_MK)
+	echo  $(<F)
+	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
+
+$(BUILD_DIR)/%.pde$(OBJ_EXT): %.pde $(BUILD_INFO_H) $(ARDUINO_MK)
 	echo  $(<F)
 	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
 
@@ -335,7 +358,7 @@ list_flash_defs:
 	echo === Memory configurations for board: $(BOARD) ===
 	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.$(FLASH_DEF_MATCH)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
 
-help:
+help: $(ARDUINO_MK)
 	echo
 	echo "Generic makefile for building Arduino esp8266 and esp32 projects"
 	echo "This file can either be used directly or included from another makefile"
@@ -401,7 +424,7 @@ endif
 -include $(wildcard $(BUILD_DIR)/*$(DEP_EXT))
 
 DEFAULT_GOAL ?= all
-.DEFAULT_GOAL = $(DEFAULT_GOAL)
+.DEFAULT_GOAL := $(DEFAULT_GOAL)
 
 ifeq ($(OS), Darwin)
   BUILD_THREADS ?= $(shell sysctl -n hw.ncpu)
@@ -421,7 +444,10 @@ endif
 define PARSE_ARDUINO
 my $$board = shift;
 my $$flashSize = shift;
-my $$os = (shift =~ /Windows_NT/) ? "windows" : "linux";
+my $$os = shift;
+$$os =~ s/Windows_NT/windows/;
+$$os =~ s/Linux/linux/;
+$$os =~ s/Darwin/macosx/;
 my $$lwipvariant = shift;
 my %v;
 
@@ -450,7 +476,8 @@ foreach my $$fn (@ARGV) {
       $$key =~ s/$$board\.menu\.(?:FlashSize|eesz)\.$$flashSize\.//;
       $$key =~ s/$$board\.menu\.CpuFrequency\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.(?:FlashFreq|xtal)\.[^\.]+\.//;
-      $$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
+			$$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
+			$$key =~ s/$$board\.menu\.baud\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.ResetMethod\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.FlashMode\.[^\.]+\.//;
 			$$key =~ s/$$board\.menu\.LwIPVariant\.$$lwipvariant\.//;
@@ -461,6 +488,7 @@ foreach my $$fn (@ARGV) {
    close($$f);
 }
 $$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$$(COMP_PATH)';
+$$v{'runtime.tools.xtensa-esp32-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
 
 die "* Unknown board $$board\n" unless $$board_defined;
@@ -475,6 +503,7 @@ def_var('compiler.warning_flags', 'COMP_WARNINGS');
 $$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 $$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
+$$v{'recipe.objcopy.hex.1.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
 $$v{'recipe.hooks.linking.prelink.1.pattern'} =~ s/\{build.vtable_flags\}/\$$(VTABLE_FLAGS)/;
 $$v{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$$1\}/g;
 $$v{'compiler.cpreprocessor.flags'} .= " \$$(C_PRE_PROC_FLAGS)";
@@ -500,7 +529,7 @@ print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
 print "PART_FILE?=$$1\n" if $$v{'recipe.objcopy.eep.pattern'} =~ /\"([^\"]+\.csv)\"/;
 $$v{'recipe.objcopy.eep.pattern'} =~ s/\"([^\"]+\.csv)\"/\$$(PART_FILE)/;
 print "GEN_PART_COM=$$v{'recipe.objcopy.eep.pattern'}\n";
-print "ELF2BIN_COM=$$v{'recipe.objcopy.hex.pattern'}\n";
+print "ELF2BIN_COM=", $$v{'recipe.objcopy.hex.pattern'} || $$v{'recipe.objcopy.hex.1.pattern'}, "\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
 print "ESPTOOL_COM?=$$v{'tools.esptool.path'}/$$v{'tools.esptool.cmd'}\n";
 print "UPLOAD_COM?=$$v{'tools.esptool.upload.pattern'}\n";

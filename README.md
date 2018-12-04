@@ -28,7 +28,7 @@ It is also possible to let the makefile generate and upload a complete SPIFFS fi
 The intension is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line
 or in separate companion makefiles.
 
-The makefile can be used on Linux, Mac OS and Microsoft Windows (Cygwin).
+The makefile can be used on Linux, Mac OS and Microsoft Windows (Cygwin or WSL).
 
 The actual build commands (compile, link etc.) are extracted from the Arduino description files (platform.txt etc.).
 
@@ -54,7 +54,7 @@ After this you can test it. Attach your ESP8266 board and execute the following 
 The DEMO definition makes the the makefile choose a typical demo sketch from the ESP examples.
 After this you will have the example downloaded onto in your ESP.
 
-If you want to use a clone of the environment instead then do something like this:
+If you want to use a clone of the environment instead then do something like this for esp8266:
 
     cd ~
     git clone https://github.com/esp8266/Arduino.git esp8266
@@ -75,21 +75,15 @@ To test this installation you have to specify the location of the environment wh
     cd ~/makeEspArduino
     make -f makeEspArduino.mk ESP_ROOT=~/esp8266 DEMO=1 flash
 
-Do the following to enable the build environment for ESP32.
-
-First must download the ESP32 environment.
+For ESP32 just change esp8266 in the commands above to esp32, i.e:
 
     cd ~
     git clone https://github.com/espressif/arduino-esp32.git  esp32
-
-Then install the required environment tools by issuing the following commands:
-
+    cd esp32
     cd tools
     python get.py
 
-For ESP32 project the current setup doesn't enable automatic detection of the esp32 environment and hence the variable ESP_ROOT must always be defined.
-
-When building ESP32 projects the variable CHIP must also always be defined, example:
+When building ESP32 projects the variable CHIP must always be defined, example:
 
     make -f makeEspArduino.mk ESP_ROOT=~/esp32 CHIP=esp32 DEMO=1 flash
 
