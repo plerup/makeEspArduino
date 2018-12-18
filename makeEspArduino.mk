@@ -470,17 +470,18 @@ foreach my $$fn (@ARGV) {
    open($$f, $$fn) || die "Failed to open: $$fn\n";
    while (<$$f>) {
       s/\s+$$//;
+      s/\.esptool_py\./.esptool./g;
       next unless /^(\w[\w\-\.]+)=(.*)/;
       my ($$key, $$val) =($$1, $$2);
       $$board_defined = 1 if $$key eq "$$board.name";
       $$key =~ s/$$board\.menu\.(?:FlashSize|eesz)\.$$flashSize\.//;
       $$key =~ s/$$board\.menu\.CpuFrequency\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.(?:FlashFreq|xtal)\.[^\.]+\.//;
-			$$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
-			$$key =~ s/$$board\.menu\.baud\.[^\.]+\.//;
+      $$key =~ s/$$board\.menu\.UploadSpeed\.[^\.]+\.//;
+      $$key =~ s/$$board\.menu\.baud\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.ResetMethod\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.FlashMode\.[^\.]+\.//;
-			$$key =~ s/$$board\.menu\.LwIPVariant\.$$lwipvariant\.//;
+      $$key =~ s/$$board\.menu\.LwIPVariant\.$$lwipvariant\.//;
       $$key =~ s/^$$board\.//;
       $$v{$$key} ||= $$val;
       $$v{$$1} = $$v{$$key} if $$key =~ /(.+)\.$$os$$/;
@@ -536,7 +537,7 @@ print "UPLOAD_COM?=$$v{'tools.esptool.upload.pattern'}\n";
 
 if ($$v{'build.spiffs_start'}) {
   print "SPIFFS_START?=$$v{'build.spiffs_start'}\n";
-	my $$spiffs_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
+  my $$spiffs_size = sprintf("0x%X", hex($$v{'build.spiffs_end'})-hex($$v{'build.spiffs_start'}));
   print "SPIFFS_SIZE?=$$spiffs_size\n";
 } elsif ($$v{'build.partitions'}) {
   print "COMMA=,\n";
