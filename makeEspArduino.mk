@@ -199,7 +199,7 @@ USER_LIBS := $(filter-out $(IGNORE_PATTERN),$(call find_files,a,$(SKETCH_DIR) $(
 FLASH_DEF_MATCH = $(if $(filter $(CHIP), esp32),build\.flash_size=(\S+),menu\.(?:FlashSize|eesz)\.([^\.]+)=(.+))
 FLASH_DEF ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.$(FLASH_DEF_MATCH)/){ print "$$1"; exit;}}')
 # Same method for LwIPVariant
-LWIP_VARIANT ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.LwIPVariant\.([^\.=]+)=/){ print "$$1"; exit;}}')
+LWIP_VARIANT ?= $(shell cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) {if (/^$(BOARD)\.menu\.(?:LwIPVariant|ip)\.([^\.=]+)=/){ print "$$1"; exit;}}')
 
 # Handle possible changed state i.e. make command line parameters or changed git versions
 ifeq ($(OS), Darwin)
@@ -481,7 +481,7 @@ foreach my $$fn (@ARGV) {
       $$key =~ s/$$board\.menu\.baud\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.ResetMethod\.[^\.]+\.//;
       $$key =~ s/$$board\.menu\.FlashMode\.[^\.]+\.//;
-      $$key =~ s/$$board\.menu\.LwIPVariant\.$$lwipvariant\.//;
+      $$key =~ s/$$board\.menu\.(?:LwIPVariant|ip)\.$$lwipvariant\.//;
       $$key =~ s/^$$board\.//;
       $$v{$$key} ||= $$val;
       $$v{$$1} = $$v{$$key} if $$key =~ /(.+)\.$$os$$/;
