@@ -63,7 +63,7 @@ OS ?= $(shell uname -s)
 git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null || echo Unknown)
 time_string = $(shell date +$(1))
 ifeq ($(OS), Darwin)
-  find_files = $(shell find -E $2 -regex ".*\.($1)")
+  find_files = $(shell find -E $2 -regex ".*\.($1)" | sed 's/\/\//\//')
 else
   find_files = $(shell find $2 -regextype posix-egrep -regex ".*\.($1)")
 endif
@@ -565,7 +565,7 @@ print "LINK_PREBUILD=$$v{'recipe.hooks.linking.prelink.1.pattern'}\n";
 print "MEM_FLASH=$$v{'recipe.size.regex'}\n";
 print "MEM_RAM=$$v{'recipe.size.regex.data'}\n";
 print "FLASH_INFO=$$v{'menu.FlashSize.' . $$flashSize}\n";
-print "LWIP_INFO=$$v{'menu.LwIPVariant.' . $$lwipvariant}\n";
+print "LWIP_INFO=", $$v{'menu.LwIPVariant.' . $$lwipvariant} || $$v{'menu.ip.' . $$lwipvariant}, "\n";
 endef
 export PARSE_ARDUINO
 
