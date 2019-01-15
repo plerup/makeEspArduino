@@ -357,11 +357,11 @@ list_lib:
 list_flash_defs:
 	echo === Memory configurations for board: $(BOARD) ===
 	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.$(FLASH_DEF_MATCH)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
-	
+
 list_lwip:
         echo === lwip configurations for board: $(BOARD) ===
         cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.menu\.(?:LwIPVariant|ip)\.(\w+)=(.+)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
- 
+
 help: $(ARDUINO_MK)
 	echo
 	echo "Generic makefile for building Arduino esp8266 and esp32 projects"
@@ -406,6 +406,7 @@ help: $(ARDUINO_MK)
 	echo "  FLASH_FILE           File name for dump and restore flash operations"
 	echo "                          Default: '$(FLASH_FILE)'"
 	echo "  LWIP_VARIANT         Use specified variant of the lwip library when applicable"
+	echo "                         Use 'list_lwip' to get list of available ones"
 	echo "                         Default: $(LWIP_VARIANT) ($(LWIP_INFO))"
 	echo "  VERBOSE              Set to 1 to get full printout of the build"
 	echo "  BUILD_THREADS        Number of parallel build threads"
