@@ -133,9 +133,10 @@ endif
 SRC_GIT_VERSION := $(call git_description,$(dir $(SKETCH)))
 
 # Main output definitions
-MAIN_NAME := $(basename $(notdir $(SKETCH)))
-MAIN_EXE = $(BUILD_DIR)/$(MAIN_NAME).bin
-FS_IMAGE = $(BUILD_DIR)/FS.spiffs
+SKETCH_NAME := $(basename $(notdir $(SKETCH)))
+MAIN_NAME ?= $(SKETCH_NAME)
+MAIN_EXE ?= $(BUILD_DIR)/$(MAIN_NAME).bin
+FS_IMAGE ?= $(BUILD_DIR)/FS.spiffs
 
 ifeq ($(OS), Windows_NT)
   # Adjust some paths for cygwin
@@ -359,8 +360,8 @@ list_flash_defs:
 	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.$(FLASH_DEF_MATCH)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
 
 list_lwip:
-        echo === lwip configurations for board: $(BOARD) ===
-        cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.menu\.(?:LwIPVariant|ip)\.(\w+)=(.+)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
+	echo === lwip configurations for board: $(BOARD) ===
+	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.menu\.(?:LwIPVariant|ip)\.(\w+)=(.+)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
 
 help: $(ARDUINO_MK)
 	echo
