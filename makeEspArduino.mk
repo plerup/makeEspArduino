@@ -178,7 +178,7 @@ SKETCH_DIR = $(dir $(SKETCH))
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
   LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);' \
-                          "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp,$(SKETCH_DIR)))
+                          "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp|h|hpp,$(SKETCH_DIR)))
   ifneq ($(findstring /examples/,$(realpath $(SKETCH))),)
     # Assume library example sketch, add the library directory unless it is an Arduino basic example
     EX_LIB := $(shell perl -e 'print $$ARGV[0] if $$ARGV[0] =~ s/\/examples\/(?!\d\d\.).+//' $(realpath $(SKETCH)))
