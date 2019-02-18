@@ -177,8 +177,32 @@ SKETCH_DIR = $(dir $(SKETCH))
 # User defined compilation units and directories
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
-  LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);' \
-                          "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp,$(SKETCH_DIR)))
+  LIB_DIRS := $(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)
+  LIBRARIES := $(foreach lib_dir,$(LIB_DIRS),$(wildcard $(lib_dir)/*))
+
+  extract_headers = $(sort $(shell perl -n -e '/^\s*\#\s*include <([^>]+)>/ && print $$1, " "' $1))
+  find_src_headers = $(foreach header,$1,$(foreach lib,$(LIBRARIES),$(wildcard $(lib)/src/$(header))))
+  find_non_src_headers = $(foreach header,$1,$(foreach lib,$(LIBRARIES),$(wildcard $(lib)/$(header))))
+  filter_out_src_headers = $(filter-out $(foreach lib_header,$1,$(dir $(abspath $(dir $(lib_header))))$(notdir $(lib_header))),$2)
+
+  FILES := $(SKETCH) $(call find_files,S|c|cpp|h|hpp,$(SKETCH_DIR))
+  HEADERS := $(call extract_headers,$(FILES))
+
+  LIB_HEADERS := $(call find_src_headers,$(HEADERS))
+  LIB_HEADERS += $(call filter_out_src_headers,$(LIB_HEADERS),$(call find_non_src_headers,$(HEADERS)))
+
+  LIB_HEADERS := $(sort $(LIB_HEADERS))
+  LIBS := $(abspath $(dir $(LIB_HEADERS)))
+
+  RECURSIVE_FILES := $(foreach dir,$(LIBS),$(call find_files,S|c|cpp|h|hpp,$(dir)))
+  RECURSIVE_HEADERS := $(filter-out $(HEADERS),$(sort $(call extract_headers,$(RECURSIVE_FILES))))
+
+  LIB_HEADERS += $(call find_src_headers,$(RECURSIVE_HEADERS))
+  LIB_HEADERS += $(call filter_out_src_headers,$(LIB_HEADERS),$(call find_non_src_headers,$(RECURSIVE_HEADERS)))
+
+  LIB_HEADERS := $(sort $(LIB_HEADERS))
+  LIBS := $(abspath $(dir $(LIB_HEADERS)))
+
   ifneq ($(findstring /examples/,$(realpath $(SKETCH))),)
     # Assume library example sketch, add the library directory unless it is an Arduino basic example
     EX_LIB := $(shell perl -e 'print $$ARGV[0] if $$ARGV[0] =~ s/\/examples\/(?!\d\d\.).+//' $(realpath $(SKETCH)))
