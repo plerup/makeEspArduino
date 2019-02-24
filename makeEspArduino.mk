@@ -351,8 +351,16 @@ upload_fs flash_fs: $(FS_IMAGE)
 ota_fs: $(FS_IMAGE)
 	$(OTA_TOOL) $(OTA_ARGS) --spiffs --file="$(FS_IMAGE)"
 
+MONITOR_COM := python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) $(UPLOAD_SPEED)
+
 run: flash
-	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
+	$(MONITOR_COM)
+
+monitor:
+	$(MONITOR_COM)
+
+reset:
+	$(ESPTOOL_PATTERN) --no-stub run
 
 FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
 dump_flash:
