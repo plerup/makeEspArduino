@@ -300,7 +300,7 @@ $(BUILD_DIR)/%.S.o: %.S
 
 $(CORE_LIB): $(CORE_OBJ)
 	echo  Creating core archive
-	rm -f $@
+	$(RM) $@
 	$(CORE_LIB_COM) $^
 
 ifdef USER_RULES
