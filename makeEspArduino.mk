@@ -157,10 +157,6 @@ ifeq ($(OS), Windows_NT)
   endif
 endif
 
-# Build file extensions
-OBJ_EXT = .o
-DEP_EXT = .d
-
 # Auto generated makefile with Arduino definitions
 ARDUINO_MK = $(BUILD_DIR)/arduino.mk
 
@@ -171,7 +167,7 @@ HTTP_TOOL ?= curl
 # Core source files
 CORE_DIR = $(ESP_ROOT)/cores/$(CHIP)
 CORE_SRC := $(call find_files,S|c|cpp,$(CORE_DIR))
-CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
+CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%.o,$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
 
 SKETCH_DIR = $(dir $(SKETCH))
@@ -224,7 +220,7 @@ IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
 USER_INC := $(filter-out $(IGNORE_PATTERN),$(call find_files,h|hpp,$(SKETCH_DIR) $(dir $(LIBS))))
 USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp$(USER_SRC_PATTERN),$(SKETCH_DIR) $(LIBS)))
 # Object file suffix seems to be significant for the linker...
-USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
+USER_OBJ := $(subst .ino,.ino.cpp,$(patsubst %,$(BUILD_DIR)/%.o,$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
 USER_INC_DIRS := $(sort $(dir $(USER_INC)))
 USER_LIBS := $(filter-out $(IGNORE_PATTERN),$(call find_files,a,$(SKETCH_DIR) $(LIBS)))
@@ -251,13 +247,13 @@ ifeq ($(IGNORE_STATE),)
     $(info * Build state has changed, doing a full rebuild *)
     $(shell rm -rf "$(BUILD_DIR)")
   endif
-  STATE_SAVE := $(shell mkdir -p $(BUILD_DIR) ; echo '$(STATE_INF)' >$(STATE_LOG))
+  STATE_SAVE := $(shell mkdir -p $(BUILD_DIR) ; echo '$(STATE_INF)' > $(STATE_LOG))
 endif
 
 # The actual build commands are to be extracted from the Arduino description files
 ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
-$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
-	perl -e "$$PARSE_ARDUINO" $(BOARD) '$(FLASH_DEF)' '$(OS)' '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
+$(ARDUINO_MK): $(ARDUINO_DESC) | $(BUILD_DIR)
+	perl -e "$$PARSE_ARDUINO" $(BOARD) '$(FLASH_DEF)' '$(OS)' '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) > $(ARDUINO_MK)
 
 -include $(ARDUINO_MK)
 
@@ -269,11 +265,11 @@ VPATH += $(shell find $(CORE_DIR) -type d) $(USER_DIRS)
 # Automatically generated build information data
 # Makes the build date and git descriptions at the actual build event available as string constants in the program
 BUILD_INFO_H = $(BUILD_DIR)/buildinfo.h
-BUILD_INFO_CPP = $(BUILD_DIR)/buildinfo.c++
-BUILD_INFO_OBJ = $(BUILD_INFO_CPP)$(OBJ_EXT)
+BUILD_INFO_C = $(BUILD_DIR)/buildinfo.c
+BUILD_INFO_OBJ = $(BUILD_INFO_C).o
 
 $(BUILD_INFO_H): | $(BUILD_DIR)
-	echo "typedef struct { const char *date, *time, *src_version, *env_version;} _tBuildInfo; extern _tBuildInfo _BuildInfo;" >$@
+	echo "typedef struct { const char *date, *time, *src_version, *env_version; } _tBuildInfo; extern _tBuildInfo _BuildInfo;" > $@
 
 # ccache?
 ifeq ($(USE_CCACHE), 1)
@@ -282,23 +278,23 @@ ifeq ($(USE_CCACHE), 1)
 endif
 
 # Build rules for the different source file types
-$(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H) $(ARDUINO_MK)
+$(BUILD_DIR)/%.cpp.o: %.cpp $(BUILD_INFO_H)
 	echo  $(<F)
-	$(CPP_COM) $(CPP_EXTRA) $< -o $@
+	$(CPP_COM) $(CXX_FLAGS) $< -o $@
 
-$(BUILD_DIR)/%_.cpp$(OBJ_EXT): %.ino $(BUILD_INFO_H) $(ARDUINO_MK)
+$(BUILD_DIR)/%.ino.cpp.o: %.ino $(BUILD_INFO_H)
 	echo  $(<F)
-	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
+	$(CPP_COM) $(CXX_FLAGS) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
 
-$(BUILD_DIR)/%.pde$(OBJ_EXT): %.pde $(BUILD_INFO_H) $(ARDUINO_MK)
+$(BUILD_DIR)/%.pde.o: %.pde $(BUILD_INFO_H)
 	echo  $(<F)
-	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
+	$(CPP_COM) $(CXX_FLAGS) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
 
-$(BUILD_DIR)/%.c$(OBJ_EXT): %.c $(ARDUINO_MK)
+$(BUILD_DIR)/%.c.o: %.c
 	echo  $(<F)
-	$(C_COM) $(C_EXTRA) $< -o $@
+	$(C_COM) $(C_FLAGS) $< -o $@
 
-$(BUILD_DIR)/%.S$(OBJ_EXT): %.S $(ARDUINO_MK)
+$(BUILD_DIR)/%.S.o: %.S
 	echo  $(<F)
 	$(S_COM) $(S_EXTRA) $< -o $@
 
@@ -314,24 +310,24 @@ endif
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
 
-$(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ)
+$(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ) $(BUILD_INFO_H) | prebuild
 	echo Linking $(MAIN_EXE)
 	$(LINK_PREBUILD)
 	echo "  Versions: $(SRC_GIT_VERSION), $(ESP_ARDUINO_VERSION)"
-	echo 	'#include <buildinfo.h>' >$(BUILD_INFO_CPP)
-	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_ARDUINO_VERSION)"};' >>$(BUILD_INFO_CPP)
-	$(CPP_COM) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
-	$(LD_COM) $(LD_EXTRA)
+	echo 	'#include <buildinfo.h>' > $(BUILD_INFO_C)
+	echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)", "$(BUILD_TIME)", "$(SRC_GIT_VERSION)", "$(ESP_ARDUINO_VERSION)"};' >> $(BUILD_INFO_C)
+	$(CPP_COM) $(BUILD_INFO_C) -o $(BUILD_INFO_OBJ)
+	$(LD_COM) $(LD_FLAGS)
 	$(GEN_PART_COM)
 	$(ELF2BIN_COM)
 	$(SIZE_COM) | perl -e "$$MEM_USAGE" "$(MEM_FLASH)" "$(MEM_RAM)"
 ifneq ($(LWIP_INFO),)
-	printf "LwIPVariant: $(LWIP_INFO)\n"
+	printf "lwIP Variant: $(LWIP_INFO)\n\n"
 endif
 ifneq ($(FLASH_INFO),)
 	printf "Flash size: $(FLASH_INFO)\n\n"
 endif
-	perl -e 'print "Build complete. Elapsed time: ", time()-$(START_TIME),  " seconds\n\n"'
+	perl -e 'print "Build completed in ", time()-$(START_TIME),  " seconds.\n\n"'
 
 upload flash: all
 	$(UPLOAD_COM)
@@ -343,7 +339,7 @@ http: all
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
-$(FS_IMAGE): $(ARDUINO_MK) $(wildcard $(FS_DIR)/*)
+$(FS_IMAGE): $(wildcard $(FS_DIR)/*)
 	echo Generating filesystem image: $(FS_IMAGE)
 	$(MKSPIFFS_COM)
 
@@ -381,7 +377,7 @@ erase_flash:
 LIB_OUT_FILE ?= $(BUILD_DIR)/$(MAIN_NAME).a
 .PHONY: lib
 lib: $(LIB_OUT_FILE)
-$(LIB_OUT_FILE): $(filter-out $(BUILD_DIR)/$(MAIN_NAME)_.cpp$(OBJ_EXT),$(USER_OBJ))
+$(LIB_OUT_FILE): $(filter-out $(BUILD_DIR)/$(MAIN_NAME).ino.cpp.o,$(USER_OBJ))
 	echo Building library $(LIB_OUT_FILE)
 	rm -f $(LIB_OUT_FILE)
 	$(LIB_COM) cru $(LIB_OUT_FILE) $^
@@ -406,7 +402,7 @@ list_lwip:
 	echo === lwip configurations for board: $(BOARD) ===
 	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.menu\.(?:LwIPVariant|ip)\.(\w+)=(.+)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
 
-help: $(ARDUINO_MK)
+help:
 	echo
 	echo "Generic makefile for building Arduino esp8266 and esp32 projects"
 	echo "This file can either be used directly or included from another makefile"
@@ -462,7 +458,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 .PHONY: all
-all: $(BUILD_DIR) $(ARDUINO_MK) $(BUILD_INFO_H) prebuild $(MAIN_EXE)
+all: $(MAIN_EXE)
 
 prebuild:
 ifdef USE_PREBUILD
@@ -471,7 +467,7 @@ endif
 	$(SKETCH_PREBUILD)
 
 # Include all available dependencies
--include $(wildcard $(BUILD_DIR)/*$(DEP_EXT))
+-include $(wildcard $(BUILD_DIR)/*.d)
 
 DEFAULT_GOAL ?= all
 .DEFAULT_GOAL := $(DEFAULT_GOAL)
@@ -629,6 +625,6 @@ while (<>) {
   $$f += $$1 if /$$fp/;
 }
 print "\nMemory usage\n";
-print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "Ram:", $$r, "Flash:", $$f);
+print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "RAM:", $$r, "Flash:", $$f);
 endef
 export MEM_USAGE
