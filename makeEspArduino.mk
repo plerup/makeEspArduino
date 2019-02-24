@@ -294,7 +294,7 @@ upload flash: all
 	$(UPLOAD_COM)
 
 ota: all
-	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
+	$(OTA_TOOL) --progress --ip="$(ESP_ADDR)" --port="$(ESP_PORT)" --auth="$(ESP_PWD)" --file="$(MAIN_EXE)"
 
 http: all
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
@@ -310,7 +310,7 @@ upload_fs flash_fs: $(FS_IMAGE)
 	$(FS_UPLOAD_COM)
 
 ota_fs: $(FS_IMAGE)
-	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -s -f $(FS_IMAGE)
+	$(OTA_TOOL) --progress --ip="$(ESP_ADDR)" --port="$(ESP_PORT)" --auth="$(ESP_PWD)" --spiffs --file="$(FS_IMAGE)"
 
 run: flash
 	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
