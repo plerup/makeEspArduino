@@ -87,7 +87,7 @@ ifndef ESP_ROOT
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
-  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool/*))
+  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool*/*))
   MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*/*))
 else
   # Location defined, assume it is a git clone
