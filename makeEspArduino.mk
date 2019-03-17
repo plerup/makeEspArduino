@@ -28,7 +28,6 @@ BOARD ?= $(if $(filter $(CHIP), esp32),esp32,generic)
 # Serial flashing parameters
 UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
 UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
-UPLOAD_VERB ?= -v
 
 # OTA parameters
 ESP_ADDR ?= ESP_123456
@@ -87,7 +86,7 @@ ifndef ESP_ROOT
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
-  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool/*))
+  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool*/*))
   MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*/*))
 else
   # Location defined, assume it is a git clone
@@ -507,7 +506,6 @@ def_var('build.flash_freq', 'FLASH_SPEED');
 def_var('upload.resetmethod', 'UPLOAD_RESET');
 def_var('upload.speed', 'UPLOAD_SPEED');
 def_var('compiler.warning_flags', 'COMP_WARNINGS');
-$$v{'upload.verbose'} = '$$(UPLOAD_VERB)';
 $$v{'serial.port'} = '$$(UPLOAD_PORT)';
 $$v{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
 $$v{'recipe.objcopy.hex.1.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$$(BOOT_LOADER)/;
