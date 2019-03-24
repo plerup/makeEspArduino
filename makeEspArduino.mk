@@ -568,7 +568,8 @@ print "VTABLE_FLAGS?=$$v{'build.vtable_flags'}\n";
 print "LINK_PREBUILD=$$v{'recipe.hooks.linking.prelink.1.pattern'}\n";
 print "MEM_FLASH=$$v{'recipe.size.regex'}\n";
 print "MEM_RAM=$$v{'recipe.size.regex.data'}\n";
-print "FLASH_INFO=$$v{'menu.FlashSize.' . $$flashSize}\n";
+$$flash_info = $$v{'menu.FlashSize.' . $$flashSize} || $$v{'menu.eesz.' . $$flashSize};
+print "FLASH_INFO=$$flash_info\n";
 print "LWIP_INFO=", $$v{'menu.LwIPVariant.' . $$lwipvariant} || $$v{'menu.ip.' . $$lwipvariant}, "\n";
 endef
 export PARSE_ARDUINO
