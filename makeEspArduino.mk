@@ -58,6 +58,8 @@ BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
 START_TIME := $(shell date +%s)
 OS ?= $(shell uname -s)
 
+CCACHE ?= 0
+
 # Utility functions
 git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/null || echo Unknown)
 time_string = $(shell date +$(1))
@@ -65,6 +67,12 @@ ifeq ($(OS), Darwin)
   find_files = $(shell find -E $2 -regex ".*\.($1)" | sed 's/\/\//\//')
 else
   find_files = $(shell find $2 -regextype posix-egrep -regex ".*\.($1)")
+endif
+
+ifeq ($(CCACHE), 1)
+    CCACHE_COM ?= ccache
+else
+    CCACHE_COM = 
 endif
 
 # ESP Arduino directories
@@ -525,8 +533,8 @@ foreach my $$key (sort keys %v) {
 
 print "INCLUDE_VARIANT = $$v{'build.variant'}\n";
 print "# Commands\n";
-print "C_COM=$$v{'recipe.c.o.pattern'}\n";
-print "CPP_COM=$$v{'recipe.cpp.o.pattern'}\n";
+print "C_COM=\$$(CCACHE_COM) $$v{'recipe.c.o.pattern'}\n";
+print "CPP_COM=\$$(CCACHE_COM) $$v{'recipe.cpp.o.pattern'}\n";
 print "S_COM=$$v{'recipe.S.o.pattern'}\n";
 print "LIB_COM=\"$$v{'compiler.path'}$$v{'compiler.ar.cmd'}\"\n";
 print "CORE_LIB_COM=$$v{'recipe.ar.pattern'}\n";
