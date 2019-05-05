@@ -188,7 +188,7 @@ endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
 USER_INC := $(filter-out $(IGNORE_PATTERN),$(call find_files,h|hpp,$(SKETCH_DIR) $(dir $(LIBS))))
-USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp,$(SKETCH_DIR) $(LIBS)))
+USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp$(USER_SRC_PATTERN),$(SKETCH_DIR) $(LIBS)))
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
@@ -241,6 +241,12 @@ BUILD_INFO_OBJ = $(BUILD_INFO_CPP)$(OBJ_EXT)
 $(BUILD_INFO_H): | $(BUILD_DIR)
 	echo "typedef struct { const char *date, *time, *src_version, *env_version;} _tBuildInfo; extern _tBuildInfo _BuildInfo;" >$@
 
+# ccache?
+ifeq ($(USE_CCACHE), 1)
+  C_COM_PREFIX = ccache
+  CPP_COM_PREFIX = $(C_COM_PREFIX)
+endif
+
 # Build rules for the different source file types
 $(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H) $(ARDUINO_MK)
 	echo  $(<F)
@@ -266,6 +272,10 @@ $(CORE_LIB): $(CORE_OBJ)
 	echo  Creating core archive
 	rm -f $@
 	$(CORE_LIB_COM) $^
+
+ifdef USER_RULES
+include $(USER_RULES)
+endif
 
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
@@ -411,6 +421,7 @@ help: $(ARDUINO_MK)
 	echo "  VERBOSE              Set to 1 to get full printout of the build"
 	echo "  BUILD_THREADS        Number of parallel build threads"
 	echo "                         Default: Maximum possible, based on number of CPUs"
+	echo "  USE_CCACHE           Set to 1 to use ccache in the build"
 	echo
 
 $(BUILD_DIR):
@@ -525,8 +536,8 @@ foreach my $$key (sort keys %v) {
 
 print "INCLUDE_VARIANT = $$v{'build.variant'}\n";
 print "# Commands\n";
-print "C_COM=$$v{'recipe.c.o.pattern'}\n";
-print "CPP_COM=$$v{'recipe.cpp.o.pattern'}\n";
+print "C_COM=\$$(C_COM_PREFIX) $$v{'recipe.c.o.pattern'}\n";
+print "CPP_COM=\$$(CPP_COM_PREFIX) $$v{'recipe.cpp.o.pattern'}\n";
 print "S_COM=$$v{'recipe.S.o.pattern'}\n";
 print "LIB_COM=\"$$v{'compiler.path'}$$v{'compiler.ar.cmd'}\"\n";
 print "CORE_LIB_COM=$$v{'recipe.ar.pattern'}\n";

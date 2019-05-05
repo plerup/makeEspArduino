@@ -62,13 +62,15 @@ If you want to use a clone of the environment instead then do something like thi
 
 Determine which version you want to use. [See releases.](https://github.com/esp8266/Arduino/releases) Example:
 
-    git checkout tags/2.3.0
+    git checkout tags/2.4.0
 
 Then install the required environment tools by issuing the following commands:
 
+    git submodule update --init
     cd tools
     python get.py
 
+Please note that you have to rerun the commands above if you checkout another label or branch in the git.
 
 To test this installation you have to specify the location of the environment when running make
 
@@ -80,6 +82,7 @@ For ESP32 just change esp8266 in the commands above to esp32, i.e:
     cd ~
     git clone https://github.com/espressif/arduino-esp32.git  esp32
     cd esp32
+    git submodule update --init
     cd tools
     python get.py
 
@@ -250,3 +253,23 @@ It is also possible to build a library containing all the object files reference
 Example:
 
     espmake lib
+
+#### Using ccache
+
+If you want to speed up your builds with makeEspArduino and have ccache available on your platform, this can easily be enabled. Just set the variable **USE_CCACHE** to 1 and all C and C++ compilations will be prefixed with ccache.
+
+If you want some other prefix to the C compiler command line the following variables are available: **C_COM_PREFIX** and **CPP_COM_PREFIX**
+
+#### User defined make rules
+
+makeEspArduino has make rules for all the type of input files that are normally part of a build of Arduino for esp. If you want to add other type of files there are two variables which can be used for this purpose.
+
+**USER_SRC_PATTERN** Files matching this pattern will be included in the automatic search for source files. Must be prefixed with a "|". Example:
+
+    USER_SRC_PATTERN = |my_ext
+
+**USER_RULES** This variable is used to define the path to a makefile which contains the actual make rules for the user specific source files. Example of contents for such a file:
+
+    $(BUILD_DIR)/%.my_ext.o: %.my_ext
+      echo Running my make rule for $<
+      my_command $<
