@@ -31,8 +31,18 @@ UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
 
 # OTA parameters
 ESP_ADDR ?= ESP_123456
-ESP_PORT ?= 8266
-ESP_PWD ?= 123
+ESP_PORT ?=
+ESP_PWD ?=
+
+OTA_ARGS = --progress --ip="$(ESP_ADDR)"
+
+ifneq ($(ESP_PORT),)
+  OTA_ARGS += --port="$(ESP_PORT)"
+endif
+
+ifneq ($(ESP_PWD),)
+  OTA_ARGS += --auth="$(ESP_PWD)"
+endif
 
 # HTTP update parameters
 HTTP_ADDR ?= ESP_123456
@@ -154,7 +164,7 @@ DEP_EXT = .d
 ARDUINO_MK = $(BUILD_DIR)/arduino.mk
 
 # Special tool definitions
-OTA_TOOL ?= $(TOOLS_ROOT)/espota.py
+OTA_TOOL ?= python $(TOOLS_ROOT)/espota.py
 HTTP_TOOL ?= curl
 
 # Core source files
@@ -183,7 +193,6 @@ ifeq ($(LIBS),)
       LIBS += $(EX_LIB)
     endif
   endif
-
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
@@ -303,7 +312,7 @@ upload flash: all
 	$(UPLOAD_COM)
 
 ota: all
-	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
+	$(OTA_TOOL) $(OTA_ARGS) --file="$(MAIN_EXE)"
 
 http: all
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
@@ -319,7 +328,7 @@ upload_fs flash_fs: $(FS_IMAGE)
 	$(FS_UPLOAD_COM)
 
 ota_fs: $(FS_IMAGE)
-	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -s -f $(FS_IMAGE)
+	$(OTA_TOOL) $(OTA_ARGS) --spiffs --file="$(FS_IMAGE)"
 
 run: flash
 	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
