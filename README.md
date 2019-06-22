@@ -25,7 +25,7 @@ Rules for building the firmware as well as upload it to the ESP board are provid
 
 It is also possible to let the makefile generate and upload a complete SPIFFS file system based on an arbitrary directory of files.
 
-The intension is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line
+The intention is to use the makefile as is. Possible specific configuration is done via makefile variables supplied on the command line
 or in separate companion makefiles.
 
 The makefile can be used on Linux, Mac OS and Microsoft Windows (Cygwin or WSL).
