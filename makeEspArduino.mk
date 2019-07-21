@@ -318,7 +318,7 @@ http: all
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
-$(FS_IMAGE): $(ARDUINO_MK) $(wildcard $(FS_DIR)/*)
+$(FS_IMAGE): $(ARDUINO_MK) $(wildcard $(FS_DIR)/*) $(wildcard $(FS_DIR)/*/*) $(wildcard $(FS_DIR)/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*/*/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*/*/*/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*/*/*/*/*/*/*) $(wildcard $(FS_DIR)/*/*/*/*/*/*/*/*/*/*/*)
 	echo Generating filesystem image: $(FS_IMAGE)
 	$(MKSPIFFS_COM)
 
