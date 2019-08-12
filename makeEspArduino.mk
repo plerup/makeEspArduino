@@ -30,22 +30,18 @@ UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
 UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
 
 # OTA parameters
-ESP_ADDR ?= ESP_123456
-ESP_PORT ?=
-ESP_PWD ?=
+OTA_ADDR ?=
+OTA_PORT ?= $(if $(filter $(CHIP), esp32),3232,8266)
+OTA_PWD ?=
 
-OTA_ARGS = --progress --ip="$(ESP_ADDR)"
+OTA_ARGS = --progress --ip="$(OTA_ADDR)" --port="$(OTA_PORT)"
 
-ifneq ($(ESP_PORT),)
-  OTA_ARGS += --port="$(ESP_PORT)"
-endif
-
-ifneq ($(ESP_PWD),)
-  OTA_ARGS += --auth="$(ESP_PWD)"
+ifneq ($(OTA_PWD),)
+  OTA_ARGS += --auth="$(OTA_PWD)"
 endif
 
 # HTTP update parameters
-HTTP_ADDR ?= ESP_123456
+HTTP_ADDR ?=
 HTTP_URI ?= /update
 HTTP_PWD ?= user
 HTTP_USR ?= password
@@ -312,9 +308,18 @@ upload flash: all
 	$(UPLOAD_COM)
 
 ota: all
+ifeq ($(OTA_ADDR),)
+	echo == Error: Address of device must be specified via OTA_ADDR
+	exit 1
+endif
+	$(OTA_PRE_COM)
 	$(OTA_TOOL) $(OTA_ARGS) --file="$(MAIN_EXE)"
 
 http: all
+ifeq ($(HTTP_ADDR),)
+	echo == Error: Address of device must be specified via HTTP_ADDR
+	exit 1
+endif
 	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
@@ -328,6 +333,10 @@ upload_fs flash_fs: $(FS_IMAGE)
 	$(FS_UPLOAD_COM)
 
 ota_fs: $(FS_IMAGE)
+ifeq ($(OTA_ADDR),)
+	echo == Error: Address of device must be specified via OTA_ADDR
+	exit 1
+endif
 	$(OTA_TOOL) $(OTA_ARGS) --spiffs --file="$(FS_IMAGE)"
 
 run: flash
@@ -367,7 +376,7 @@ clean:
 
 list_boards:
 	echo === Available boards ===
-	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^(\w+)\.name=(.+)/){ print sprintf("%-20s %s\n", $$1,$$2);} }'
+	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^([\w\-]+)\.name=(.+)/){ print sprintf("%-20s %s\n", $$1,$$2);} }'
 
 list_lib:
 	echo === User specific libraries ===
@@ -393,7 +402,7 @@ help: $(ARDUINO_MK)
 	echo "  flash                Build and and flash the project application"
 	echo "  flash_fs             Build and and flash file system (when applicable)"
 	echo "  ota                  Build and and flash via OTA"
-	echo "                         Params: ESP_ADDR, ESP_PORT and ESP_PWD"
+	echo "                         Params: OTA_ADDR, OTA_PORT and OTA_PWD"
 	echo "  ota_fs               Build and and flash file system via OTA"
 	echo "  http                 Build and and flash via http (curl)"
 	echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
