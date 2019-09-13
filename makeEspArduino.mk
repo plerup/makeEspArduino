@@ -111,6 +111,7 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
+PYTHON3_PATH = $(dir $(shell which python3 2>/dev/null))
 ESPTOOL ?= $(shell which esptool.py 2>/dev/null || which esptool 2>/dev/null)
 ifneq ($(ESPTOOL),)
   # esptool exists in path, overide defaults and use it for esp8266 flash operations
@@ -525,6 +526,7 @@ foreach my $$fn (@ARGV) {
 $$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.xtensa-esp32-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
+$$v{'runtime.tools.python3.path'} = '$$(PYTHON3_PATH)';
 
 die "* Unknown board $$board\n" unless $$board_defined;
 print "# Board definitions\n";
