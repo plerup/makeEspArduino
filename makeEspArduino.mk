@@ -111,6 +111,7 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
+PYTHON_PATH = $(dir $(shell which python 2>/dev/null))
 PYTHON3_PATH = $(dir $(shell which python3 2>/dev/null))
 ESPTOOL ?= $(shell which esptool.py 2>/dev/null || which esptool 2>/dev/null)
 ifneq ($(ESPTOOL),)
@@ -526,6 +527,7 @@ foreach my $$fn (@ARGV) {
 $$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.xtensa-esp32-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
+$$v{'runtime.tools.python.path'} = '$$(PYTHON_PATH)';
 $$v{'runtime.tools.python3.path'} = '$$(PYTHON3_PATH)';
 
 die "* Unknown board $$board\n" unless $$board_defined;
