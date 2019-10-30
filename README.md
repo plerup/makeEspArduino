@@ -202,12 +202,11 @@ It is of course also always possible to control the variable values in the makef
 
 #### Flash operations for esp8266
 
-The Arduino configuration files for esp8266 currently specifies "esptool ck" as the tool to be used for flashing operations. The alternative "esptool.py" (which is used for esp32) can however be used here as well. This tool is significantly faster and makeEspArduino will check if "esptool.py" can be found in the path. When present, it will be used for the flashing. An alternative location outside of the path for "esptool.py" can also be specified via the variable ESPTOOL.
-This tool is not part of ESP/Arduino and subsequently must be installed separately from: https://github.com/espressif/esptool or just by typing:
+Some of the flashing operations in makeEspArduino require the "esptool" Python program. This is bundled automatically for esp32/Arduino but for esp8266 the handling of this has changed a lot during the different releases of esp8266/Arduino. To cope with this makeEspArduino require you to have this installed separately in the affected cases. This can be done from: https://github.com/espressif/esptool or just by typing:
 
     pip install esptool
 
-For esp32 this tool is included and used for all flashing operations by default.
+If it is missing when required, an error message will be shown.
 
 #### Building a file system
 

@@ -569,7 +569,11 @@ $$v{'recipe.objcopy.eep.pattern'} =~ s/\"([^\"]+\.csv)\"/\$$(PART_FILE)/;
 print "GEN_PART_COM=$$v{'recipe.objcopy.eep.pattern'}\n";
 print "ELF2BIN_COM=", $$v{'recipe.objcopy.hex.pattern'} || $$v{'recipe.objcopy.hex.1.pattern'}, "\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
-print "ESPTOOL_COM?=$$v{'tools.esptool.path'}/$$v{'tools.esptool.cmd'}\n";
+if ($$v{'tools.esptool.cmd'} !~ /\.py$$/) {
+  print "ESPTOOL_COM?=\$$(error esptool must be installed for this operation! Run: pip install esptool)\n";
+} else {
+  print "ESPTOOL_COM?=$$v{'tools.esptool.path'}/$$v{'tools.esptool.cmd'}\n";
+}
 print "UPLOAD_COM?=$$v{'tools.esptool.upload.pattern'}\n";
 
 if ($$v{'build.spiffs_start'}) {
