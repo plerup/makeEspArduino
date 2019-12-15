@@ -45,6 +45,7 @@ HTTP_ADDR ?=
 HTTP_URI ?= /update
 HTTP_PWD ?= user
 HTTP_USR ?= password
+HTTP_OPT ?= --progress-bar -o /dev/null
 
 # Output directory
 BUILD_ROOT ?= /tmp/mkESP
@@ -322,7 +323,7 @@ ifeq ($(HTTP_ADDR),)
 	echo == Error: Address of device must be specified via HTTP_ADDR
 	exit 1
 endif
-	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
+	$(HTTP_TOOL) $(HTTP_OPT) -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
 $(FS_IMAGE): $(ARDUINO_MK) $(wildcard $(FS_DIR)/*)
