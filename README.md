@@ -17,15 +17,11 @@ You basically just have to specify your main sketch file and the libraries it us
 directories without any required specific hierarchy or any of the other restrictions which normally apply to builds made from within the
 Arduino IDE. The makefile will find all involved header and source files automatically.
 
-The makefile will also automatically produce header and c files which contain information about the time when the build (link)
-was performed. This file also includes the git descriptions (tag) of the used version of the ESP/Arduino environment and the project source (when applicable).
-This can be used by the project source files to provide stringent version information from within the software.
-
 Rules for building the firmware as well as upload it to the ESP board are provided.
 
 It is also possible to let the makefile generate and upload a complete SPIFFS file system based on an arbitrary directory of files.
 
-The intension is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line
+The intention is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line
 or in separate companion makefiles.
 
 The makefile can be used on Linux, Mac OS and Microsoft Windows (Cygwin or WSL).
@@ -164,9 +160,26 @@ As stated above you can always get a description of all makefile operations, con
 
     espmake help
 
+##### Build time and version information
+
+makeESPArduino will also automatically produce header and c files which contain information about the time when the build (link)
+was performed. This file also includes the git descriptions (tag) of the used version of the ESP/Arduino environment and the project source (when applicable).
+This can be used by the project source files to provide stringent version information from within the software. The information is put into a global struct
+variable named "_BuildInfo" with the following string constant fields:
+
+| Name        | Value |
+| ----------- |-------------|
+| __src_version__ | Source code git version |
+| __date__ | Build date |
+| __time__ | Build time |
+| __env_version__ | ESP Arduino version |
+
+
+
 ##### Automatic rebuild
 
-Another special feature of this makefile is that it keeps a record of the command line parameters and git versions used in the latest build. If any of these are changed during the next build, e.g. changing a variable definition, a complete rebuild is made in order to ensure that all possible changes are applied.
+Another special feature of this makefile is that it keeps a record of the command line parameters and git versions used in the latest build. If any of these are changed during the next build, e.g. changing a variable definition, a complete rebuild is made in order to ensure that all possible changes are applied. If you don't want this
+function just define the variable **IGNORE_STATE**.
 
 ##### Including the makefile
 
@@ -272,3 +285,9 @@ makeEspArduino has make rules for all the type of input files that are normally 
     $(BUILD_DIR)/%.my_ext.o: %.my_ext
       echo Running my make rule for $<
       my_command $<
+
+#### Setting used version of ESP Arduino
+
+The rule **set_git_version** can be used to control which version tag to be used in the git repo specified via **ESP_ROOT**. It will perform the necessary git and copy operations to ensure that the repo is setup correctly for the tag specified via the variable **REQ_GIT_VERSION**. Example:
+
+    espmake set_git_version REQ_GIT_VERSION=2.6.3
