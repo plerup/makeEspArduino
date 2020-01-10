@@ -77,19 +77,24 @@ endif
 # ESP Arduino directories
 ifndef ESP_ROOT
   # Location not defined, find and use possible version in the Arduino IDE installation
-  ifeq ($(OS), Windows_NT)
-    ARDUINO_ROOT = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15)
-  else ifeq ($(OS), Darwin)
-    ARDUINO_ROOT = $(HOME)/Library/Arduino15
-  else
-    ARDUINO_ROOT = $(HOME)/.arduino15
+  ifeq ($(ARDUINO_ROOT),)
+    ifeq ($(OS), Windows_NT)
+      ARDUINO_ROOT = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15)
+    else ifeq ($(OS), Darwin)
+      ARDUINO_ROOT = $(HOME)/Library/Arduino15
+    else
+      ARDUINO_ROOT = $(HOME)/.arduino15
+    endif
   endif
+
   ARDUINO_ESP_ROOT = $(ARDUINO_ROOT)/packages/$(CHIP)
   ESP_ROOT := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/hardware/$(CHIP)/*))
   ifeq ($(ESP_ROOT),)
     $(error No installed version of $(CHIP) Arduino found)
   endif
-  ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
+  ifeq ($(origin ARDUINO_LIBS), undefined)
+    ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
+  endif
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
