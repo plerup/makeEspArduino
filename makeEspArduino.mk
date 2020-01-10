@@ -7,7 +7,7 @@
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
-# Copyright (c) 2016-2018 Peter Lerup. All rights reserved.
+# Copyright (c) 2016-2020 Peter Lerup. All rights reserved.
 #
 #====================================================================================
 
@@ -30,15 +30,22 @@ UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
 UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
 
 # OTA parameters
-ESP_ADDR ?= ESP_123456
-ESP_PORT ?= 8266
-ESP_PWD ?= 123
+OTA_ADDR ?=
+OTA_PORT ?= $(if $(filter $(CHIP), esp32),3232,8266)
+OTA_PWD ?=
+
+OTA_ARGS = --progress --ip="$(OTA_ADDR)" --port="$(OTA_PORT)"
+
+ifneq ($(OTA_PWD),)
+  OTA_ARGS += --auth="$(OTA_PWD)"
+endif
 
 # HTTP update parameters
-HTTP_ADDR ?= ESP_123456
+HTTP_ADDR ?=
 HTTP_URI ?= /update
 HTTP_PWD ?= user
 HTTP_USR ?= password
+HTTP_OPT ?= --progress-bar -o /dev/null
 
 # Output directory
 BUILD_ROOT ?= /tmp/mkESP
@@ -105,6 +112,8 @@ ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
 endif
 
+PYTHON_PATH = $(dir $(shell which python 2>/dev/null))
+PYTHON3_PATH = $(dir $(shell which python3 2>/dev/null))
 ESPTOOL ?= $(shell which esptool.py 2>/dev/null || which esptool 2>/dev/null)
 ifneq ($(ESPTOOL),)
   # esptool exists in path, overide defaults and use it for esp8266 flash operations
@@ -116,11 +125,11 @@ ifneq ($(ESPTOOL),)
 endif
 ESPTOOL_PATTERN = echo Using: $(UPLOAD_PORT) @ $(UPLOAD_SPEED) && "$(ESPTOOL_COM)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(CHIP)
 
-ifeq ($(MAKECMDGOALS),help)
+ifneq ($(filter $(MAKECMDGOALS), help set_git_version),)
   DEMO=1
 endif
 ifdef DEMO
-  SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WebServer/examples/HelloServer/HelloServer.ino)
+  SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WiFi/examples/WiFiScan/WiFiScan.ino)
 endif
 SKETCH ?= $(wildcard *.ino *.pde)
 ifeq ($(SKETCH),)
@@ -154,7 +163,7 @@ DEP_EXT = .d
 ARDUINO_MK = $(BUILD_DIR)/arduino.mk
 
 # Special tool definitions
-OTA_TOOL ?= $(TOOLS_ROOT)/espota.py
+OTA_TOOL ?= python $(TOOLS_ROOT)/espota.py
 HTTP_TOOL ?= curl
 
 # Core source files
@@ -162,13 +171,14 @@ CORE_DIR = $(ESP_ROOT)/cores/$(CHIP)
 CORE_SRC := $(call find_files,S|c|cpp,$(CORE_DIR))
 CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
+USER_OBJ_LIB = $(BUILD_DIR)/user_obj.ar
 
 SKETCH_DIR = $(dir $(SKETCH))
 # User defined compilation units and directories
 ifeq ($(LIBS),)
   # Automatically find directories with header files used by the sketch
   LIBS := $(shell perl -e 'use File::Find;@d = split(" ", shift);while (<>) {$$f{"$$1"} = 1 if /^\s*\#include\s+[<"]([^>"]+)/;}find(sub {if ($$f{$$_}){print $$File::Find::dir," ";$$f{$$_}=0;}}, @d);' \
-                          "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp,$(SKETCH_DIR)))
+                          "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp|h|hpp,$(SKETCH_DIR)))
   ifneq ($(findstring /examples/,$(realpath $(SKETCH))),)
     # Assume library example sketch, add the library directory unless it is an Arduino basic example
     EX_LIB := $(shell perl -e 'print $$ARGV[0] if $$ARGV[0] =~ s/\/examples\/(?!\d\d\.).+//' $(realpath $(SKETCH)))
@@ -183,7 +193,6 @@ ifeq ($(LIBS),)
       LIBS += $(EX_LIB)
     endif
   endif
-
 endif
 
 IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
@@ -207,11 +216,13 @@ ifeq ($(OS), Darwin)
 else
   CMD_LINE := $(shell tr "\0" " " </proc/$$PPID/cmdline)
 endif
-IGNORE_STATE ?= $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards),1,)
+IGNORE_STATE ?= $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards set_git_version),1,)
 ifeq ($(IGNORE_STATE),)
   STATE_LOG := $(BUILD_DIR)/state.txt
   STATE_INF := $(strip $(foreach par,$(CMD_LINE),$(if $(findstring =,$(par)),$(par),))) \
                $(SRC_GIT_VERSION) $(ESP_ARDUINO_VERSION)
+  # Ignore port and speed changes
+  STATE_INF := $(patsubst UPLOAD_%,,$(STATE_INF))
   PREV_STATE_INF := $(if $(wildcard $(STATE_LOG)),$(shell cat $(STATE_LOG)),$(STATE_INF))
   ifneq ($(PREV_STATE_INF),$(STATE_INF))
     $(info * Build state has changed, doing a full rebuild *)
@@ -221,7 +232,7 @@ ifeq ($(IGNORE_STATE),)
 endif
 
 # The actual build commands are to be extracted from the Arduino description files
-ARDUINO_DESC := $(shell find $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
+ARDUINO_DESC := $(shell find -L $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
 $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
 	perl -e "$$PARSE_ARDUINO" $(BOARD) '$(FLASH_DEF)' '$(OS)' '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
@@ -239,7 +250,7 @@ BUILD_INFO_CPP = $(BUILD_DIR)/buildinfo.c++
 BUILD_INFO_OBJ = $(BUILD_INFO_CPP)$(OBJ_EXT)
 
 $(BUILD_INFO_H): | $(BUILD_DIR)
-	echo "typedef struct { const char *date, *time, *src_version, *env_version;} _tBuildInfo; extern _tBuildInfo _BuildInfo;" >$@
+	echo "typedef struct { const char *date, *time, *src_version, *env_version; } _tBuildInfo; extern _tBuildInfo _BuildInfo;" >$@
 
 # ccache?
 ifeq ($(USE_CCACHE), 1)
@@ -269,9 +280,16 @@ $(BUILD_DIR)/%.S$(OBJ_EXT): %.S $(ARDUINO_MK)
 	$(S_COM) $(S_EXTRA) $< -o $@
 
 $(CORE_LIB): $(CORE_OBJ)
-	echo  Creating core archive
+	echo Creating core archive
 	rm -f $@
 	$(CORE_LIB_COM) $^
+
+$(USER_OBJ_LIB): $(USER_OBJ)
+	echo Creating object archive
+	rm -f $@
+	$(LIB_COM) cru $@ $^
+
+
 
 ifdef USER_RULES
 include $(USER_RULES)
@@ -280,7 +298,7 @@ endif
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
 
-$(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ)
+$(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ_LIB)
 	echo Linking $(MAIN_EXE)
 	$(LINK_PREBUILD)
 	echo "  Versions: $(SRC_GIT_VERSION), $(ESP_ARDUINO_VERSION)"
@@ -303,13 +321,26 @@ upload flash: all
 	$(UPLOAD_COM)
 
 ota: all
-	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -f $(MAIN_EXE)
+ifeq ($(OTA_ADDR),)
+	echo == Error: Address of device must be specified via OTA_ADDR
+	exit 1
+endif
+	$(OTA_PRE_COM)
+	$(OTA_TOOL) $(OTA_ARGS) --file="$(MAIN_EXE)"
 
 http: all
-	$(HTTP_TOOL) --verbose -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
+ifeq ($(HTTP_ADDR),)
+	echo == Error: Address of device must be specified via HTTP_ADDR
+	exit 1
+endif
+	$(HTTP_TOOL) $(HTTP_OPT) -F image=@$(MAIN_EXE) --user $(HTTP_USR):$(HTTP_PWD) http://$(HTTP_ADDR)$(HTTP_URI)
 	echo "\n"
 
-$(FS_IMAGE): $(ARDUINO_MK) $(wildcard $(FS_DIR)/*)
+$(FS_IMAGE): $(ARDUINO_MK) $(shell find $(FS_DIR)/ 2>/dev/null)
+ifeq ($(SPIFFS_SIZE),)
+	echo == Error: No file system specified in FLASH_DEF
+	exit 1
+endif
 	echo Generating filesystem image: $(FS_IMAGE)
 	$(MKSPIFFS_COM)
 
@@ -319,7 +350,11 @@ upload_fs flash_fs: $(FS_IMAGE)
 	$(FS_UPLOAD_COM)
 
 ota_fs: $(FS_IMAGE)
-	$(OTA_TOOL) -r -i $(ESP_ADDR) -p $(ESP_PORT) -a $(ESP_PWD) -s -f $(FS_IMAGE)
+ifeq ($(OTA_ADDR),)
+	echo == Error: Address of device must be specified via OTA_ADDR
+	exit 1
+endif
+	$(OTA_TOOL) $(OTA_ARGS) --spiffs --file="$(FS_IMAGE)"
 
 run: flash
 	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
@@ -358,7 +393,7 @@ clean:
 
 list_boards:
 	echo === Available boards ===
-	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^(\w+)\.name=(.+)/){ print sprintf("%-20s %s\n", $$1,$$2);} }'
+	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^([\w\-]+)\.name=(.+)/){ print sprintf("%-20s %s\n", $$1,$$2);} }'
 
 list_lib:
 	echo === User specific libraries ===
@@ -372,6 +407,18 @@ list_lwip:
 	echo === lwip configurations for board: $(BOARD) ===
 	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^$(BOARD)\.menu\.(?:LwIPVariant|ip)\.(\w+)=(.+)/){ print sprintf("%-10s %s\n", $$1,$$2);} }'
 
+set_git_version:
+ifeq ($(REQ_GIT_VERSION),)
+	echo == Error: Version tag must be specified via REQ_GIT_VERSION
+	exit 1
+endif
+	echo == Setting $(ESP_ROOT) to $(REQ_GIT_VERSION) ...
+	git -C $(ESP_ROOT) checkout -fq --recurse-submodules $(REQ_GIT_VERSION)
+	git -C $(ESP_ROOT) clean -fdxq -f
+	git -C $(ESP_ROOT) submodule update --init
+	git -C $(ESP_ROOT) submodule foreach -q --recursive git clean -xfd
+	cd $(ESP_ROOT)/tools; ./get.py -q
+
 help: $(ARDUINO_MK)
 	echo
 	echo "Generic makefile for building Arduino esp8266 and esp32 projects"
@@ -384,7 +431,7 @@ help: $(ARDUINO_MK)
 	echo "  flash                Build and and flash the project application"
 	echo "  flash_fs             Build and and flash file system (when applicable)"
 	echo "  ota                  Build and and flash via OTA"
-	echo "                         Params: ESP_ADDR, ESP_PORT and ESP_PWD"
+	echo "                         Params: OTA_ADDR, OTA_PORT and OTA_PWD"
 	echo "  ota_fs               Build and and flash file system via OTA"
 	echo "  http                 Build and and flash via http (curl)"
 	echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
@@ -394,6 +441,8 @@ help: $(ARDUINO_MK)
 	echo "                         Params: FS_DUMP_DIR"
 	echo "  erase_flash          Erase the whole flash"
 	echo "  list_lib             Show a list of used library files and include paths"
+	echo "  set_git_version      Setup ESP Arduino git repo to a the tag version"
+	echo "                         specified via REQ_GIT_VERSION"
 	echo "Configurable parameters:"
 	echo "  SKETCH               Main source file"
 	echo "                         If not specified the first sketch in current"
@@ -507,6 +556,8 @@ foreach my $$fn (@ARGV) {
 $$v{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.xtensa-esp32-elf-gcc.path'} ||= '$$(COMP_PATH)';
 $$v{'runtime.tools.esptool.path'} ||= '$$(ESPTOOL_PATH)';
+$$v{'runtime.tools.python.path'} = '$$(PYTHON_PATH)';
+$$v{'runtime.tools.python3.path'} = '$$(PYTHON3_PATH)';
 
 die "* Unknown board $$board\n" unless $$board_defined;
 print "# Board definitions\n";
@@ -542,12 +593,16 @@ print "S_COM=$$v{'recipe.S.o.pattern'}\n";
 print "LIB_COM=\"$$v{'compiler.path'}$$v{'compiler.ar.cmd'}\"\n";
 print "CORE_LIB_COM=$$v{'recipe.ar.pattern'}\n";
 print "LD_COM=$$v{'recipe.c.combine.pattern'}\n";
-print "PART_FILE?=$$1\n" if $$v{'recipe.objcopy.eep.pattern'} =~ /\"([^\"]+\.csv)\"/;
+print "PART_FILE?=\$$(ESP_ROOT)/tools/partitions/default.csv\n";
 $$v{'recipe.objcopy.eep.pattern'} =~ s/\"([^\"]+\.csv)\"/\$$(PART_FILE)/;
 print "GEN_PART_COM=$$v{'recipe.objcopy.eep.pattern'}\n";
 print "ELF2BIN_COM=", $$v{'recipe.objcopy.hex.pattern'} || $$v{'recipe.objcopy.hex.1.pattern'}, "\n";
 print "SIZE_COM=$$v{'recipe.size.pattern'}\n";
-print "ESPTOOL_COM?=$$v{'tools.esptool.path'}/$$v{'tools.esptool.cmd'}\n";
+if ($$v{'tools.esptool.cmd'} !~ /\.py$$/) {
+  print "ESPTOOL_COM?=\$$(error esptool must be installed for this operation! Run: pip install esptool)\n";
+} else {
+  print "ESPTOOL_COM?=$$v{'tools.esptool.path'}/$$v{'tools.esptool.cmd'}\n";
+}
 print "UPLOAD_COM?=$$v{'tools.esptool.upload.pattern'}\n";
 
 if ($$v{'build.spiffs_start'}) {
@@ -594,6 +649,6 @@ while (<>) {
   $$f += $$1 if /$$fp/;
 }
 print "\nMemory usage\n";
-print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "Ram:", $$r, "Flash:", $$f);
+print sprintf("  %-6s %6d bytes\n" x 2 ."\n", "RAM:", $$r, "Flash:", $$f);
 endef
 export MEM_USAGE
