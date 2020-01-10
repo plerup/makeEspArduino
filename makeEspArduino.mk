@@ -401,8 +401,13 @@ list_boards:
 	cat $(ESP_ROOT)/boards.txt | perl -e 'while (<>) { if (/^([\w\-]+)\.name=(.+)/){ print sprintf("%-20s %s\n", $$1,$$2);} }'
 
 list_lib:
-	echo === User specific libraries ===
-	perl -e 'foreach (@ARGV) {print "$$_\n"}' "* Include directories:" $(USER_INC_DIRS)  "* Library source files:" $(USER_SRC)
+	$(info *** Include directories (USER_INC_DIRS):)
+	$(foreach dir,$(USER_INC_DIRS),$(info $(dir)))
+	$(info $ )
+	
+	$(info *** Library source files (USER_SRC):)
+	$(foreach dir,$(USER_SRC),$(info $(dir)))
+	$(info)
 
 list_flash_defs:
 	echo === Memory configurations for board: $(BOARD) ===
