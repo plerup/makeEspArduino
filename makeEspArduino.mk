@@ -503,6 +503,10 @@ else
 endif
 MAKEFLAGS += -j $(BUILD_THREADS)
 
+ifneq ($(filter $(MAKECMDGOALS), help list_boards list_flash_defs list_lwip list_lib),)
+    override undefine VERBOSE
+endif
+
 ifndef VERBOSE
   # Set silent mode as default
   MAKEFLAGS += --silent
