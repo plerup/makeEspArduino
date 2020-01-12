@@ -14,6 +14,21 @@
 #====================================================================================
 # Project specific values
 #====================================================================================
+# Include user config
+ifeq ($(MAKEESPARDUINO_CONFIGS_ROOT),)
+  ifeq ($(OS), Windows_NT)
+    MAKEESPARDUINO_CONFIGS_ROOT = $(shell cygpath -m $(LOCALAPPDATA)/makeEspArduino)
+  else ifeq ($(OS), Darwin)
+    MAKEESPARDUINO_CONFIGS_ROOT = $(HOME)/Library/makeEspArduino
+  else
+    ifneq ($(XDG_CONFIG_HOME),)
+      MAKEESPARDUINO_CONFIGS_ROOT = $(XDG_CONFIG_HOME)/makeEspArduino
+    else
+      MAKEESPARDUINO_CONFIGS_ROOT = $(HOME)/.config/makeEspArduino
+    endif
+  endif
+endif
+-include $(MAKEESPARDUINO_CONFIGS_ROOT)/config.mk
 
 # Include possible project makefile. This can be used to override the defaults below
 -include $(firstword $(PROJ_CONF) $(dir $(SKETCH))config.mk)
