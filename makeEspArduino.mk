@@ -258,24 +258,27 @@ ifeq ($(USE_CCACHE), 1)
   CPP_COM_PREFIX = $(C_COM_PREFIX)
 endif
 
+# Generated header files
+GEN_H_FILES += $(BUILD_INFO_H)
+
 # Build rules for the different source file types
-$(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(BUILD_INFO_H) $(ARDUINO_MK)
+$(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(ARDUINO_MK) | $(GEN_H_FILES)
 	echo  $(<F)
 	$(CPP_COM) $(CPP_EXTRA) $< -o $@
 
-$(BUILD_DIR)/%_.cpp$(OBJ_EXT): %.ino $(BUILD_INFO_H) $(ARDUINO_MK)
+$(BUILD_DIR)/%_.cpp$(OBJ_EXT): %.ino $(ARDUINO_MK) | $(GEN_H_FILES)
 	echo  $(<F)
 	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
 
-$(BUILD_DIR)/%.pde$(OBJ_EXT): %.pde $(BUILD_INFO_H) $(ARDUINO_MK)
+$(BUILD_DIR)/%.pde$(OBJ_EXT): %.pde $(ARDUINO_MK) | $(GEN_H_FILES)
 	echo  $(<F)
 	$(CPP_COM) $(CPP_EXTRA) -x c++ -include $(CORE_DIR)/Arduino.h $< -o $@
 
-$(BUILD_DIR)/%.c$(OBJ_EXT): %.c $(ARDUINO_MK)
+$(BUILD_DIR)/%.c$(OBJ_EXT): %.c $(ARDUINO_MK) | $(GEN_H_FILES)
 	echo  $(<F)
 	$(C_COM) $(C_EXTRA) $< -o $@
 
-$(BUILD_DIR)/%.S$(OBJ_EXT): %.S $(ARDUINO_MK)
+$(BUILD_DIR)/%.S$(OBJ_EXT): %.S $(ARDUINO_MK) | $(GEN_H_FILES)
 	echo  $(<F)
 	$(S_COM) $(S_EXTRA) $< -o $@
 
@@ -477,7 +480,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 .PHONY: all
-all: $(BUILD_DIR) $(ARDUINO_MK) $(BUILD_INFO_H) prebuild $(MAIN_EXE)
+all: $(BUILD_DIR) $(ARDUINO_MK) prebuild $(MAIN_EXE)
 
 prebuild:
 ifdef USE_PREBUILD
