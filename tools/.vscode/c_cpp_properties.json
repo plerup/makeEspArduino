@@ -1,0 +1,14 @@
+{
+   "configurations" : [
+      {
+         "includePath" : [],
+         "defines" : [],
+         "name" : "Linux",
+         "intelliSenseMode" : "clang-x64",
+         "cppStandard" : "c++17",
+         "compilerPath" : "",
+         "cStandard" : "c11"
+      }
+   ],
+   "version" : 4
+}
