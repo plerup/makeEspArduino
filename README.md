@@ -88,10 +88,11 @@ When building ESP32 projects the variable CHIP must always be defined, example:
 
     make -f makeEspArduino.mk ESP_ROOT=~/esp32 CHIP=esp32 DEMO=1 flash
 
-If you want to minimize your typing henceforth then there is a rule in that makefile which can be used to generate shortcut commands
-in /usr/local/bin. These commands are named **espmake** and **espmake32**. To achieve this when using a git clone type:
+If you want to minimize your typing henceforth then there is a rule in that makefile which can be used to generate shortcut commands in /usr/local/bin. These commands are named **espmake** and **espmake32**. To achieve this when using a git clone type:
 
     make -f makeEspArduino.mk ESP_ROOT=~/esp8266 install
+
+    make -f makeEspArduino.mk ESP_ROOT=~/esp32 CHIP=ESP32 install
 
 Sudo access will be required for this operation.
 

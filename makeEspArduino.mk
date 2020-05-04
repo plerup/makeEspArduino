@@ -420,20 +420,21 @@ endif
 	git -C $(ESP_ROOT) submodule foreach -q --recursive git clean -xfd
 	cd $(ESP_ROOT)/tools; ./get.py -q
 
+BIN_DIR = /usr/local/bin
 _MAKE_COM = make -f $(__THIS_FILE) ESP_ROOT=$(ESP_ROOT)
 ifeq ($(CHIP),esp32)
   _MAKE_COM += CHIP=esp32
+	_SCRIPT = espmake32
+else
+  _SCRIPT = espmake
 endif
 vscode: all
 	perl $(__TOOLS_DIR)/vscode.pl -n $(MAIN_NAME) -m "$(_MAKE_COM)" -w "$(VS_CODE_DIR)" $(CPP_COM)
 
-BIN_DIR = /usr/local/bin
 install:
-	@echo Creating commands espmake and espmake32 in $(BIN_DIR)
-	sudo sh -c 'echo make -f $(__THIS_FILE) ESP_ROOT=$(ESP_ROOT) "\"\$$@\"" >$(BIN_DIR)/espmake'
-	sudo chmod +x $(BIN_DIR)/espmake
-	sudo sh -c 'echo make -f $(__THIS_FILE) ESP_ROOT=$(ESP_ROOT) "\"\$$@\"" CHIP=esp32 >$(BIN_DIR)/espmake32'
-	sudo chmod +x $(BIN_DIR)/espmake32
+	@echo Creating command \"$(_SCRIPT)\" in $(BIN_DIR)
+	sudo sh -c 'echo $(_MAKE_COM) "\"\$$@\"" >$(BIN_DIR)/$(_SCRIPT)'
+	sudo chmod +x $(BIN_DIR)/$(_SCRIPT)
 
 tools_dir:
 	@echo $(__TOOLS_DIR)
