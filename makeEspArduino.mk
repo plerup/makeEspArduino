@@ -364,6 +364,9 @@ endif
 run: flash
 	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
 
+monitor:
+	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
+
 FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
 dump_flash:
 	@echo Dumping flash memory to file: $(FLASH_FILE)
@@ -450,7 +453,8 @@ help: $(ARDUINO_MK)
 	@echo "  lib                  Build a library with all involved object files"
 	@echo "  flash                Build and and flash the project application"
 	@echo "  flash_fs             Build and and flash file system (when applicable)"
-	@echo "  ota                  Build and and flash via OTA"
+	@echo "  monitor              Monitor via Serial Port '$(UPLOAD_PORT)'"
+        @echo "  ota                  Build and and flash via OTA"
 	@echo "                         Params: OTA_ADDR, OTA_PORT and OTA_PWD"
 	@echo "  ota_fs               Build and and flash file system via OTA"
 	@echo "  http                 Build and and flash via http (curl)"
