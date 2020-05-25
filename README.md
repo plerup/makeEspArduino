@@ -9,20 +9,16 @@ Using make instead of the Arduino IDE makes it easier to do more production orie
 This makefile basically gives you a command line tool for easy building and loading of the ESP/Arduino examples as
 well as your own projects.
 
-The makefile can use the ESP/Arduino environment either from the installation within the Arduino IDE or in a separate
-git clone of the environment. The latter can be useful in project where you want stringent control of the environment
-version e.g. by using it as a git submodule.
+The makefile can use the ESP/Arduino environment either from the installation within the Arduino IDE or in a separate git clone of the environment. The latter can be useful in project where you want stringent control of the environment version e.g. by using it as a git submodule.
 
 You basically just have to specify your main sketch file and the libraries it uses. The libraries can be from arbitrary
-directories without any required specific hierarchy or any of the other restrictions which normally apply to builds made from within the
-Arduino IDE. The makefile will find all involved header and source files automatically.
+directories without any required specific hierarchy or any of the other restrictions which normally apply to builds made from within the Arduino IDE. The makefile will find all involved header and source files automatically.
 
 Rules for building the firmware as well as upload it to the ESP board are provided.
 
-It is also possible to let the makefile generate and upload a complete SPIFFS file system based on an arbitrary directory of files.
+It is also possible to let the makefile generate and upload a complete flash file system based on an arbitrary directory of files.
 
-The intention is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line
-or in separate companion makefiles.
+The intention is to use the makefile as is. Possible specific configuration is done via via makefile variables supplied on the command line or in separate companion makefiles.
 
 The makefile can be used on Linux, Mac OS and Microsoft Windows (Cygwin or WSL).
 
@@ -104,8 +100,7 @@ A description of all available makefile functions and variables is always availa
 
 #### Building projects
 
-You can now use the makefile to build your own sketches or any of the examples in the ESP/Arduino environment. The makefile will automatically search
-for a sketch in the current directory and build it if found. It is also possible to specify the location of the sketch on the command line.
+You can now use the makefile to build your own sketches or any of the examples in the ESP/Arduino environment. The makefile will automatically search for a sketch in the current directory and build it if found. It is also possible to specify the location of the sketch on the command line.
 
 ##### Some examples
 
@@ -216,6 +211,15 @@ It is of course also always possible to control the variable values in the makef
 
     export UPLOAD_PORT=/dev/ttyUSB2
 
+A global config file which will apply to all builds can also be defined. The name of this file is also "config.mk". The location of this file can be defined via the variable **MAKEESPARDUINO_CONFIGS_ROOT** The default value is the OS specific standard config directory, i.e.
+
+    Linux:  $(HOME)/.config/makeEspArduino (or $(XDG_CONFIG_HOME)/makeEspArduino)
+    Mac:    $(HOME)/Library/makeEspArduino
+    CygWin: $(LOCALAPPDATA)/makeEspArduino
+
+PLease note that the local config file can always override definitions in the global one.
+
+
 #### Flash operations for esp8266
 
 Some of the flashing operations in makeEspArduino require the "esptool" Python program. This is bundled automatically for esp32/Arduino but for esp8266 the handling of this has changed a lot during the different releases of esp8266/Arduino. To cope with this makeEspArduino require you to have this installed separately in the affected cases. This can be done from: https://github.com/espressif/esptool or just by typing:
@@ -226,26 +230,20 @@ If it is missing when required, an error message will be shown.
 
 #### Building a file system
 
-There are also rules in the makefile which can be used for building and uploading a complete SPIFFS file system to the ESP. This is basically the same functionality
+There are also rules in the makefile which can be used for building and uploading a complete flash file system to the ESP. This is basically the same functionality
 as the one available in the Arduino IDE, https://github.com/esp8266/Arduino/blob/master/doc/filesystem.rst#uploading-files-to-file-system
 
-The bundled tool "mkspiffs" is used for this.
+Both SPIFFS and LittleFS file systems are supported and which type to use is specified via the **FS_TYPE** variable.
 
 The size and flash location parameters are taken from boards.txt for esp8266 and from the partition table for esp32.
 
-The file system content is made up of everything within a directory specified via the variable **FS_DIR**. By default this variable is set to a subdirectory named
-**data** in the sketch directory.
+The file system content is made up of everything within a directory specified via the variable **FS_DIR**. By default this variable is set to a subdirectory named **data** in the sketch directory.
 
 Use the rule **flash_fs** or **ota_fs** to generate a file system image and upload it to the ESP.
 
 All the settings for the file system are taken from the selected board's configuration.
 
 It is also possible to dump and recreate the complete file system from the device via the rule **dump_fs**. The corresponding flash section will be extracted and the individual files recreated in a directory in the build structure.
-
-***Please note for esp32!***
-
-Version 0.2.2 or later of mkspiffs is required.
-
 
 
 #### Additional flash I/O operations
@@ -298,8 +296,7 @@ The rule **set_git_version** can be used to control which version tag to be used
 
 #### Using Visual Studio Code
 
-Visual Studio Code is a great editor which can be used together with makeEspArduino. The makefile contains a rule named "vscode". When invoked it will generate a config file for the C/C++ addin. This will contain all
-the required definitions for the IntelliSense function. The information is based on the parameters of the c/c++ compilation command.
+Visual Studio Code is a great editor which can be used together with makeEspArduino. The makefile contains a rule named "vscode". When invoked it will generate a config file for the C/C++ addin. This will contain all the required definitions for the IntelliSense function. The information is based on the parameters of the c/c++ compilation command.
 
 It will also generate contents in the "tasks" configuration file which enables building with makeEspArduino from within the editor. This is convenient for stepping through compilation errors for instance.
 

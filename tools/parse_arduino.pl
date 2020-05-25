@@ -134,8 +134,8 @@ if ($vars{'build.spiffs_start'}) {
 }
 $vars{'build.spiffs_blocksize'} ||= "4096";
 print "SPIFFS_BLOCK_SIZE?=$vars{'build.spiffs_blocksize'}\n";
-print "MKSPIFFS_COM?=\"\$(MKSPIFFS_PATH)\" -b \$(SPIFFS_BLOCK_SIZE) -s \$(SPIFFS_SIZE) -c \$(FS_DIR) \$(FS_IMAGE)\n";
-print "RESTSPIFFS_COM?=\"\$(MKSPIFFS_PATH)\" -b \$(SPIFFS_BLOCK_SIZE) -s \$(SPIFFS_SIZE) -u \$(FS_REST_DIR) \$(FS_IMAGE)\n";
+print "MK_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(SPIFFS_BLOCK_SIZE) -s \$(SPIFFS_SIZE) -c \$(FS_DIR) \$(FS_IMAGE)\n";
+print "RESTORE_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(SPIFFS_BLOCK_SIZE) -s \$(SPIFFS_SIZE) -u \$(FS_RESTORE_DIR) \$(FS_IMAGE)\n";
 
 my $fs_upload_com = $vars{'tools.esptool.upload.pattern'};
 $fs_upload_com =~ s/(.+ -ca) .+/$1 \$(SPIFFS_START) -cf \$(FS_IMAGE)/;

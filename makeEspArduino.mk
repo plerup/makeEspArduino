@@ -21,6 +21,22 @@ __TOOLS_DIR := $(dir $(__THIS_FILE))tools
 # Include possible project makefile. This can be used to override the defaults below
 -include $(firstword $(PROJ_CONF) $(dir $(SKETCH))config.mk)
 
+# Include possible global user configurations
+ifeq ($(MAKEESPARDUINO_CONFIGS_ROOT),)
+  ifeq ($(OS), Windows_NT)
+    MAKEESPARDUINO_CONFIGS_ROOT = $(shell cygpath -m $(LOCALAPPDATA)/makeEspArduino)
+  else ifeq ($(OS), Darwin)
+    MAKEESPARDUINO_CONFIGS_ROOT = $(HOME)/Library/makeEspArduino
+  else
+    ifneq ($(XDG_CONFIG_HOME),)
+      MAKEESPARDUINO_CONFIGS_ROOT = $(XDG_CONFIG_HOME)/makeEspArduino
+    else
+      MAKEESPARDUINO_CONFIGS_ROOT = $(HOME)/.config/makeEspArduino
+    endif
+  endif
+endif
+-include $(MAKEESPARDUINO_CONFIGS_ROOT)/config.mk
+
 #=== Default values not available in the Arduino configuration files
 
 CHIP ?= esp8266
@@ -28,6 +44,10 @@ CHIP ?= esp8266
 # Serial flashing parameters
 UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
 UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
+
+# Monitor definitions
+MONITOR_SPEED ?= 115200
+MONITOR_COM ?= python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) $(MONITOR_SPEED)
 
 # OTA parameters
 OTA_ADDR ?=
@@ -51,9 +71,10 @@ HTTP_OPT ?= --progress-bar -o /dev/null
 BUILD_ROOT ?= /tmp/mkESP
 BUILD_DIR ?= $(BUILD_ROOT)/$(MAIN_NAME)_$(BOARD)
 
-# File system source directory
+# File system and its directories
+FS_TYPE ?= spiffs
 FS_DIR ?= $(dir $(SKETCH))data
-FS_REST_DIR ?= $(BUILD_DIR)/file_system
+FS_RESTORE_DIR ?= $(BUILD_DIR)/file_system
 
 # Bootloader
 BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
@@ -94,11 +115,11 @@ ifndef ESP_ROOT
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
   ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool*/*))
-  MKSPIFFS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*/*))
+  MK_FS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mk$(FS_TYPE)/*/*))
 else
   # Location defined, assume it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
-  MKSPIFFS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/mkspiffs/*))
+  MK_FS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/mk$(FS_TYPE)/*))
 endif
 ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
@@ -147,7 +168,7 @@ SRC_GIT_VERSION := $(call git_description,$(dir $(SKETCH)))
 SKETCH_NAME := $(basename $(notdir $(SKETCH)))
 MAIN_NAME ?= $(SKETCH_NAME)
 MAIN_EXE ?= $(BUILD_DIR)/$(MAIN_NAME).bin
-FS_IMAGE ?= $(BUILD_DIR)/FS.spiffs
+FS_IMAGE ?= $(BUILD_DIR)/FS.bin
 
 ifeq ($(OS), Windows_NT)
   # Adjust some paths for cygwin
@@ -346,8 +367,8 @@ ifeq ($(SPIFFS_SIZE),)
 	@echo == Error: No file system specified in FLASH_DEF
 	exit 1
 endif
-	@echo Generating filesystem image: $(FS_IMAGE)
-	$(MKSPIFFS_COM)
+	@echo Generating file system image: $(FS_IMAGE)
+	$(MK_FS_COM)
 
 fs: $(FS_IMAGE)
 
@@ -362,7 +383,10 @@ endif
 	$(OTA_TOOL) $(OTA_ARGS) --spiffs --file="$(FS_IMAGE)"
 
 run: flash
-	python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) 115200
+	$(MONITOR_COM)
+
+monitor:
+	$(MONITOR_COM)
 
 FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
 dump_flash:
@@ -370,12 +394,12 @@ dump_flash:
 	$(ESPTOOL_PATTERN) read_flash 0 $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";$$mem_size=$$1*1024;$$mem_size*=1024 if $$2 eq "M";print $$mem_size;' $(FLASH_DEF)) $(FLASH_FILE)
 
 dump_fs:
-	@echo Dumping flash file system to directory: $(FS_REST_DIR)
+	@echo Dumping flash file system to directory: $(FS_RESTORE_DIR)
 	-$(ESPTOOL_PATTERN) read_flash $(SPIFFS_START) $(SPIFFS_SIZE) $(FS_IMAGE)
-	mkdir -p $(FS_REST_DIR)
+	mkdir -p $(FS_RESTORE_DIR)
 	@echo
 	@echo == Files ==
-	$(RESTSPIFFS_COM)
+	$(RESTORE_FS_COM)
 
 restore_flash:
 	@echo Restoring flash memory from file: $(FLASH_FILE)
@@ -439,6 +463,9 @@ install:
 tools_dir:
 	@echo $(__TOOLS_DIR)
 
+ram_usage: $(MAIN_EXE)
+	$(shell find $(TOOLS_ROOT) | grep 'gcc-nm') -Clrtd --size-sort $(BUILD_DIR)/$(MAIN_NAME).elf | grep -i ' [b] '
+
 help: $(ARDUINO_MK)
 	@echo
 	@echo "Generic makefile for building Arduino esp8266 and esp32 projects"
@@ -465,6 +492,9 @@ help: $(ARDUINO_MK)
 	@echo "                         specified via REQ_GIT_VERSION"
 	@echo "  install              Create the commands \"espmake\" and \"espmake32\""
 	@echo "  vscode               Create config file for Visual Studio Code and launch"
+	@echo "  ram_usage            Show global variables RAM usage"
+	@echo "  monitor              Start serial monitor on the upload port"
+	@echo "  run                  Build flash and start serial monitor"
 	@echo "Configurable parameters:"
 	@echo "  SKETCH               Main source file"
 	@echo "                         If not specified the first sketch in current"
@@ -481,9 +511,12 @@ help: $(ARDUINO_MK)
 	@echo "  BUILD_DIR            Directory for intermediate build files."
 	@echo "                         Default '$(BUILD_DIR)'"
 	@echo "  BUILD_EXTRA_FLAGS    Additional parameters for the compilation commands"
+	@echo "  COMP_WARNINGS        Compilation warning options. Default: $(COMP_WARNINGS)"
+	@echo "  FS_TYPE              File system type. Default: $(FS_TYPE)"
 	@echo "  FS_DIR               File system root directory"
 	@echo "  UPLOAD_PORT          Serial flashing port name. Default: '$(UPLOAD_PORT)'"
 	@echo "  UPLOAD_SPEED         Serial flashing baud rate. Default: '$(UPLOAD_SPEED)'"
+	@echo "  MONITOR_SPEED        Baud rate for the monitor. Default: '$(MONITOR_SPEED)'"
 	@echo "  FLASH_FILE           File name for dump and restore flash operations"
 	@echo "                          Default: '$(FLASH_FILE)'"
 	@echo "  LWIP_VARIANT         Use specified variant of the lwip library when applicable"
