@@ -18,6 +18,7 @@ use strict;
 use Cwd;
 use JSON::PP;
 use Getopt::Std;
+use File::Basename;
 
 sub file_to_string {
   local($/);
@@ -40,6 +41,19 @@ sub string_to_file {
 
 #--------------------------------------------------------------------
 
+sub find_dir_upwards {
+  my $match = $_[0];
+  my $dir = Cwd::abs_path(".");
+  while ($dir ne "/" && $dir ne $ENV{'HOME'}) {
+    my $test = $dir . "/$match";
+    return $test if -e $test;
+    $dir = dirname($dir);
+  }
+  return Cwd::abs_path(".") . "/$match";
+}
+
+#--------------------------------------------------------------------
+
 sub make_portable {
   # Use variables in paths when possible
   $_[0] =~ s/$_[1]/\$\{workspaceFolder\}/g;
@@ -50,7 +64,7 @@ sub make_portable {
 
 # Parameters
 my %opts;
-getopts('n:m:w:d:', \%opts);
+getopts('n:m:w:d:i:', \%opts);
 my $name = $opts{n} || "Linux";
 my $make_com = $opts{m} || "espmake";
 my $workspace_dir = $opts{w};
@@ -59,14 +73,7 @@ my $comp_path = shift;
 $comp_path = shift if $comp_path eq "ccache";
 
 my $config_dir_name = ".vscode";
-if (!$workspace_dir) {
-  # Find the workspace directory
-  # First check parent
-  $workspace_dir = "../";
-  # If not available assume current directory
-  $workspace_dir = "./" unless -d "$workspace_dir$config_dir_name";
-  $workspace_dir = Cwd::abs_path($workspace_dir);
-}
+$workspace_dir ||= dirname(find_dir_upwards($config_dir_name));
 my $config_dir = "$workspace_dir/$config_dir_name";
 mkdir($config_dir);
 
@@ -78,6 +85,7 @@ my $prop_json = file_to_string($prop_file_name) || '{"version": 4, "configuratio
 
 # Build this configuration from command line defines and includes
 while ($_ = shift) {
+  $_ .= shift if ($_ eq "-D");
   if (/-D\s*(\S+)/) {
     # May be a quoted value
     my $def = $1;
@@ -85,6 +93,10 @@ while ($_ = shift) {
     push(@defines, "\"$def\"")
   }
   push(@includes, "\"" . Cwd::abs_path($1) . "\"") if /-I\s*(\S+)/ && -e $1;
+}
+# Optional additional include directories
+foreach (split(" ", $opts{i})) {
+  push(@includes, "\"$_\"");
 }
 
 # Build corresponding json
@@ -145,7 +157,7 @@ string_to_file($task_file_name, JSON::PP->new->pretty->encode(\%$json_ref));
 
 
 # Launch Visual Studio Code
-print "Starting VS Code in workspace directory: $workspace_dir...\n";
+print "Starting VS Code in workspace directory: $workspace_dir ...\n";
 # Remove all MAKE variables to avoid conflict when building inside VS Code
 foreach my $var (keys %ENV) {
   $ENV{$var} = undef if $var =~ /^MAKE/;
