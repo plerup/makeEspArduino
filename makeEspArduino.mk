@@ -466,6 +466,9 @@ tools_dir:
 ram_usage: $(MAIN_EXE)
 	$(shell find $(TOOLS_ROOT) | grep 'gcc-nm') -Clrtd --size-sort $(BUILD_DIR)/$(MAIN_NAME).elf | grep -i ' [b] '
 
+crash: $(MAIN_EXE)
+	perl $(__TOOLS_DIR)/crash_tool.pl $(ESP_ROOT) $(BUILD_DIR)/$(MAIN_NAME).elf
+
 help: $(ARDUINO_MK)
 	@echo
 	@echo "Generic makefile for building Arduino esp8266 and esp32 projects"
@@ -495,6 +498,7 @@ help: $(ARDUINO_MK)
 	@echo "  ram_usage            Show global variables RAM usage"
 	@echo "  monitor              Start serial monitor on the upload port"
 	@echo "  run                  Build flash and start serial monitor"
+	@echo "  crash                Analyze stack trace from a crash"
 	@echo "Configurable parameters:"
 	@echo "  SKETCH               Main source file"
 	@echo "                         If not specified the first sketch in current"

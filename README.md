@@ -305,3 +305,7 @@ The configuration files will have settings with the name of the main sketch.
 The workspace directory for the settings files will be ".vscode" and this can either be automatically detected by makeEspArduino or be specified via the variable **VS_CODE_DIR**. Automatic here means checking the parent directory of the sketch for a config directory and if doesn't exist then the sketch directory itself will be used and created if not found.
 
 After generating the configuration files makeEspArduino will launch Visual Studio (if available in the path)
+
+#### Crash analysis
+
+The rule **crash** will enable you to paste the output of a program crash for esp8266 or esp32. Explanatory reason and call stack traceback will be listed with source file and line number for each call found.
