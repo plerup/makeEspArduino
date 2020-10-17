@@ -302,7 +302,7 @@ It will also generate contents in the "tasks" configuration file which enables b
 
 The configuration files will have settings with the name of the main sketch.
 
-The workspace directory for the settings files will be ".vscode" and this can either be automatically detected by makeEspArduino or be specified via the variable **VS_CODE_DIR**. Automatic here means checking the parent directory of the sketch for a config directory and if doesn't exist then the sketch directory itself will be used and created if not found.
+The workspace directory for the settings files will be ".vscode" and this can either be automatically detected by makeEspArduino or be specified via the variable **VS_CODE_DIR**. Automatic here means checking the parent directories of the sketch for a config directory and if doesn't exist then the sketch directory itself will be used and created if not found. If an existing project file (*.code-workspace) is found in that directory it will be used as input for the launch of VS Code.
 
 After generating the configuration files makeEspArduino will launch Visual Studio (if available in the path)
 

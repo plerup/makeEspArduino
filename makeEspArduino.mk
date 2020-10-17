@@ -453,7 +453,7 @@ else
   _SCRIPT = espmake
 endif
 vscode: all
-	perl $(__TOOLS_DIR)/vscode.pl -n $(MAIN_NAME) -m "$(_MAKE_COM)" -w "$(VS_CODE_DIR)" -i "$(VSCODE_INC_EXTRA)" $(CPP_COM)
+	perl $(__TOOLS_DIR)/vscode.pl -n $(MAIN_NAME) -m "$(_MAKE_COM)" -w "$(VS_CODE_DIR)" -i "$(VSCODE_INC_EXTRA)" -p "$(VSCODE_PROJ_NAME)" $(CPP_COM)
 
 install:
 	@echo Creating command \"$(_SCRIPT)\" in $(BIN_DIR)
