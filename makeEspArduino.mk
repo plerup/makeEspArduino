@@ -256,7 +256,7 @@ endif
 
 # The actual build commands are to be extracted from the Arduino description files
 ARDUINO_DESC := $(shell find -L $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
-$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) | $(BUILD_DIR)
+$(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) $(__TOOLS_DIR)/parse_arduino.pl | $(BUILD_DIR)
 	perl $(__TOOLS_DIR)/parse_arduino.pl $(BOARD) '$(FLASH_DEF)' '$(OS)' '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
 -include $(ARDUINO_MK)

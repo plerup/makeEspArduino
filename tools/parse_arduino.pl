@@ -111,9 +111,10 @@ print "LIB_COM=\"$vars{'compiler.path'}$vars{'compiler.ar.cmd'}\"\n";
 print "CORE_LIB_COM=$vars{'recipe.ar.pattern'}\n";
 print "LD_COM=$vars{'recipe.c.combine.pattern'}\n";
 print "PART_FILE?=\$(ESP_ROOT)/tools/partitions/default.csv\n";
-$vars{'recipe.objcopy.eep.pattern'} =~ s/\"([^\"]+\.csv)\"/\$(PART_FILE)/;
-print "GEN_PART_COM=$vars{'recipe.objcopy.eep.pattern'}\n";
-print "ELF2BIN_COM=", $vars{'recipe.objcopy.hex.pattern'} || $vars{'recipe.objcopy.hex.1.pattern'}, "\n";
+my $gen_part_com = $vars{'recipe.objcopy.eep.pattern'} || $vars{'recipe.objcopy.partitions.bin.pattern'};
+$gen_part_com =~ s/\"([^\"]+\.csv)\"/\$(PART_FILE)/;
+print "GEN_PART_COM=$gen_part_com\n";
+print "ELF2BIN_COM=", $vars{'recipe.objcopy.hex.pattern'} || $vars{'recipe.objcopy.hex.1.pattern'} || $vars{'recipe.objcopy.bin.pattern'}, "\n";
 print "SIZE_COM=$vars{'recipe.size.pattern'}\n";
 if ($vars{'tools.esptool.cmd'} !~ /\.py$/) {
   print "ESPTOOL_COM?=\$(error esptool must be installed for this operation! Run: pip install esptool)\n";
