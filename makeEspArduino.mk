@@ -40,6 +40,7 @@ endif
 #=== Default values not available in the Arduino configuration files
 
 CHIP ?= esp8266
+UC_CHIP := $(shell perl -e "print uc $(CHIP)")
 
 # Serial flashing parameters
 UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)

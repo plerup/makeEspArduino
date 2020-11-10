@@ -35,7 +35,7 @@ sub def_var {
 $vars{'runtime.platform.path'} = '$(ESP_ROOT)';
 $vars{'includes'} = '$(C_INCLUDES)';
 $vars{'runtime.ide.version'} = '10605';
-$vars{'build.arch'} = uc('$(CHIP)');
+$vars{'build.arch'} = '$(UC_CHIP)';
 $vars{'build.project_name'} = '$(MAIN_NAME)';
 $vars{'build.path'} = '$(BUILD_DIR)';
 $vars{'object_files'} = '$^ $(BUILD_INFO_OBJ)';
