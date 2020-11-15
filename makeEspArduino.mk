@@ -317,15 +317,20 @@ $(USER_OBJ_LIB): $(USER_OBJ)
 	$(LIB_COM) cru $@ $^
 
 
-
 ifdef USER_RULES
 include $(USER_RULES)
+endif
+
+ifneq ($(NO_USER_OBJ_LIB),)
+USER_OBJ_DEP = $(USER_OBJ)
+else
+USER_OBJ_DEP = $(USER_OBJ_LIB)
 endif
 
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
 BUILD_TIME = $(call time_string,"%H:%M:%S")
 
-$(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ_LIB)
+$(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ_DEP)
 	@echo Linking $(MAIN_EXE)
 	$(LINK_PREBUILD)
 	@echo "  Versions: $(SRC_GIT_VERSION), $(ESP_ARDUINO_VERSION)"
