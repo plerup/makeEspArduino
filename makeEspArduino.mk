@@ -536,6 +536,7 @@ help: $(ARDUINO_MK)
 	@echo "  BUILD_THREADS        Number of parallel build threads"
 	@echo "                         Default: Maximum possible, based on number of CPUs"
 	@echo "  USE_CCACHE           Set to 1 to use ccache in the build"
+	@echo "  NO_USER_OBJ_LIB      Set to 1 to disable putting all object files into an archive"
 	@echo
 
 $(BUILD_DIR):
