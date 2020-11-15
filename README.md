@@ -173,12 +173,6 @@ variable named "_BuildInfo" with the following string constant fields:
 | __env_version__ | ESP Arduino version |
 
 
-
-##### Automatic rebuild
-
-Another special feature of this makefile is that it keeps a record of the command line parameters and git versions used in the latest build. If any of these are changed during the next build, e.g. changing a variable definition, a complete rebuild is made in order to ensure that all possible changes are applied. If you don't want this
-function just define the variable **IGNORE_STATE**.
-
 ##### Including the makefile
 
 The easiest way to control the makefile is by defining the desired values of the control variables in your own makefile and then include makeEspArduino.mk. Example:
@@ -267,11 +261,29 @@ Example:
 
     espmake lib
 
-#### Using ccache
+
+#### Misc build features
+
+##### Using ccache
 
 If you want to speed up your builds with makeEspArduino and have ccache available on your platform, this can easily be enabled. Just set the variable **USE_CCACHE** to 1 and all C and C++ compilations will be prefixed with ccache.
 
+##### Cross compilation
+
 If you want some other prefix to the C compiler command line the following variables are available: **C_COM_PREFIX** and **CPP_COM_PREFIX**
+
+##### Parallel builds
+
+You can limit the number of compilation threads started by setting the **BUILD_THREADS** variable to the desired number.
+
+##### Automatic rebuild
+
+A record of the command line parameters and git versions used in the last build is stored in the build directory. If any of these are changed during the next build, e.g. changing a variable definition, a complete rebuild is made in order to ensure that all possible changes are applied. If you don't want this function just define the variable **IGNORE_STATE**.
+
+##### Intermediate object archive
+
+By default all object files are put into an archive as this seems to enable the linker to remove 5 kB RAM of unused variables. This is the same method as is used by the Arduino IDE. Onfortunatly this might break some builds i.g. if some special linker flags are used. To disable this feature set the **NO_USER_OBJ_LIB** to 1.
+
 
 #### User defined make rules
 
