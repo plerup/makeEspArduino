@@ -88,7 +88,7 @@ If you want to minimize your typing henceforth then there is a rule in that make
 
     make -f makeEspArduino.mk ESP_ROOT=~/esp8266 install
 
-    make -f makeEspArduino.mk ESP_ROOT=~/esp32 CHIP=ESP32 install
+    make -f makeEspArduino.mk ESP_ROOT=~/esp32 CHIP=esp32 install
 
 Sudo access will be required for this operation.
 
