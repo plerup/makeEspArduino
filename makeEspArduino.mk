@@ -150,8 +150,11 @@ ifneq ($(ESPTOOL),)
 endif
 ESPTOOL_PATTERN = echo Using: $(UPLOAD_PORT) @ $(UPLOAD_SPEED) && "$(ESPTOOL_COM)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(CHIP)
 
-ifneq ($(filter $(MAKECMDGOALS), help set_git_version install tools_dir),)
-  DEMO=1
+GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)
+BUILDING := $(if $(filter $(GOALS), ota all http fs ota_fs run flash dump_fs lib clean list_lib vscode ram_usage crash),1,)
+
+ifeq ($(BUILDING),)
+  DEMO = 1
 endif
 ifdef DEMO
   SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WiFi/examples/WiFiScan/WiFiScan.ino)
@@ -198,38 +201,21 @@ CORE_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(CORE_SRC)))
 CORE_LIB = $(BUILD_DIR)/arduino.ar
 USER_OBJ_LIB = $(BUILD_DIR)/user_obj.ar
 
-SKETCH_DIR = $(dir $(SKETCH))
-# User defined compilation units and directories
-ifeq ($(LIBS),)
-  # Automatically find directories with header files used by the sketch and siblings
-  LIBS := $(shell perl $(__TOOLS_DIR)/find_inc.pl "$(CUSTOM_LIBS) $(ESP_LIBS) $(ARDUINO_LIBS)" $(SKETCH) $(call find_files,S|c|cpp|h|hpp,$(SKETCH_DIR)))
-  ifneq ($(findstring /examples/,$(realpath $(SKETCH))),)
-    # Assume library example sketch, add the library directory unless it is an Arduino basic example
-    EX_LIB := $(shell perl -e 'print $$ARGV[0] if $$ARGV[0] =~ s/\/examples\/(?!\d\d\.).+//' $(realpath $(SKETCH)))
-    ifneq ($(EX_LIB),)
-      ifneq ($(wildcard $(EX_LIB)/src),)
-        # Library in src sub directory
-        EX_LIB := $(EX_LIB)/src
-      else
-        # Library at root. Avoid getting files from other examples
-        EXCLUDE_DIRS ?= $(EX_LIB)/examples
-      endif
-      LIBS += $(EX_LIB)
-    endif
-  endif
-endif
+# Find project specific source files and include directories
+SRC_LIST = $(BUILD_DIR)/src_list.mk
+FIND_SRC_CMD = $(__TOOLS_DIR)/find_src.pl
+$(SRC_LIST): $(MAKEFILE_LIST) $(FIND_SRC_CMD) | $(BUILD_DIR)
+	perl $(FIND_SRC_CMD) "$(EXCLUDE_DIRS)" $(SKETCH) "$(CUSTOM_LIBS)" "$(LIBS)" $(ESP_LIBS) $(ARDUINO_LIBS) >$(SRC_LIST)
 
-IGNORE_PATTERN := $(foreach dir,$(EXCLUDE_DIRS),$(dir)/%)
-USER_INC := $(filter-out $(IGNORE_PATTERN),$(call find_files,h|hpp,$(SKETCH_DIR) $(dir $(LIBS))))
-USER_SRC := $(SKETCH) $(filter-out $(IGNORE_PATTERN),$(call find_files,S|c|cpp$(USER_SRC_PATTERN),$(SKETCH_DIR) $(LIBS)))
+-include $(SRC_LIST)
+
+
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
-USER_INC_DIRS := $(sort $(dir $(USER_INC)))
-USER_LIBS := $(filter-out $(IGNORE_PATTERN),$(call find_files,a,$(SKETCH_DIR) $(LIBS)))
+
 
 # Use first flash definition for the board as default
-FLASH_DEF_MATCH = $(if $(filter $(CHIP), esp32),build\.flash_size=(\S+),menu\.(?:FlashSize|eesz)\.([^\.]+)=(.+))
 FLASH_DEF ?= $(shell $(BOARD_OP) $(BOARD) first_flash)
 # Same method for LwIPVariant
 LWIP_VARIANT ?= $(shell $(BOARD_OP) $(BOARD) first_lwip)
@@ -240,7 +226,7 @@ ifeq ($(OS), Darwin)
 else
   CMD_LINE := $(shell tr "\0" " " </proc/$$PPID/cmdline)
 endif
-IGNORE_STATE ?= $(if $(filter $(MAKECMDGOALS), help clean dump_flash restore_flash list_boards set_git_version, install tools_dir),1,)
+IGNORE_STATE ?= $(if $(BUILDING),,1)
 ifeq ($(IGNORE_STATE),)
   STATE_LOG := $(BUILD_DIR)/state.txt
   STATE_INF := $(strip $(foreach par,$(CMD_LINE),$(if $(findstring =,$(par)),$(par),))) \
@@ -322,9 +308,9 @@ include $(USER_RULES)
 endif
 
 ifneq ($(NO_USER_OBJ_LIB),)
-USER_OBJ_DEP = $(USER_OBJ)
+  USER_OBJ_DEP = $(USER_OBJ)
 else
-USER_OBJ_DEP = $(USER_OBJ_LIB)
+  USER_OBJ_DEP = $(USER_OBJ_LIB)
 endif
 
 BUILD_DATE = $(call time_string,"%Y-%m-%d")
@@ -429,7 +415,7 @@ clean:
 list_boards:
 	$(BOARD_OP) $(BOARD) list_names
 
-list_lib:
+list_lib: $(SRC_LIST)
 	perl -e 'foreach (@ARGV) {print "$$_\n"}' "===== Include directories =====" $(USER_INC_DIRS)  "===== Source files =====" $(USER_SRC)
 
 list_flash_defs:
@@ -495,8 +481,8 @@ help: $(ARDUINO_MK)
 	@echo "  restore_flash        Restore flash memory from a previously dumped file"
 	@echo "  dump_fs              Extract all files from the flash file system"
 	@echo "                         Params: FS_DUMP_DIR"
-	@echo "  erase_flash          Erase the whole flash"
-	@echo "  list_lib             Show a list of used library files and include paths"
+	@echo "  erase_flash          Erase the whole flash (use with care!)"
+	@echo "  list_lib             Show a list of used solurce files and include directories"
 	@echo "  set_git_version      Setup ESP Arduino git repo to a the tag version"
 	@echo "                         specified via REQ_GIT_VERSION"
 	@echo "  install              Create the commands \"espmake\" and \"espmake32\""
@@ -509,10 +495,8 @@ help: $(ARDUINO_MK)
 	@echo "  SKETCH               Main source file"
 	@echo "                         If not specified the first sketch in current"
 	@echo "                         directory will be used."
-	@echo "  LIBS                 Includes in the sketch file of libraries from within"
-	@echo "                         the ESP Arduino directories are automatically"
-	@echo "                         detected. If this is not enough, define this"
-	@echo "                         variable with all libraries or directories needed."
+	@echo "  LIBS                 Use this variable to declare additional directories"
+	@echo "                         and/or files which should be included in the build"
 	@echo "  CHIP                 Set to esp8266 or esp32. Default: '$(CHIP)'"
 	@echo "  BOARD                Name of the target board. Default: '$(BOARD)'"
 	@echo "                         Use 'list_boards' to get list of available ones"
