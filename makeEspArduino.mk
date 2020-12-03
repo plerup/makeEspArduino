@@ -151,7 +151,7 @@ endif
 ESPTOOL_PATTERN = echo Using: $(UPLOAD_PORT) @ $(UPLOAD_SPEED) && "$(ESPTOOL_COM)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(CHIP)
 
 GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)
-BUILDING := $(if $(filter $(GOALS), ota all http fs ota_fs run flash dump_fs lib clean list_lib vscode ram_usage crash),1,)
+BUILDING := $(if $(filter $(GOALS), monitor list_boards list_flash_defs list_lwip set_git_version install help),,1)
 
 ifeq ($(BUILDING),)
   DEMO = 1
