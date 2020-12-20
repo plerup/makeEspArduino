@@ -151,7 +151,7 @@ endif
 ESPTOOL_PATTERN = echo Using: $(UPLOAD_PORT) @ $(UPLOAD_SPEED) && "$(ESPTOOL_COM)" --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(CHIP)
 
 GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)
-BUILDING := $(if $(filter $(GOALS), monitor list_boards list_flash_defs list_lwip set_git_version install help),,1)
+BUILDING := $(if $(filter $(GOALS), monitor list_boards list_flash_defs list_lwip set_git_version install help tools_dir preproc),,1)
 
 ifeq ($(BUILDING),)
   DEMO = 1
@@ -209,11 +209,9 @@ $(SRC_LIST): $(MAKEFILE_LIST) $(FIND_SRC_CMD) | $(BUILD_DIR)
 
 -include $(SRC_LIST)
 
-
 # Object file suffix seems to be significant for the linker...
 USER_OBJ := $(subst .ino,_.cpp,$(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC))))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
-
 
 # Use first flash definition for the board as default
 FLASH_DEF ?= $(shell $(BOARD_OP) $(BOARD) first_flash)
@@ -461,6 +459,12 @@ ram_usage: $(MAIN_EXE)
 crash: $(MAIN_EXE)
 	perl $(__TOOLS_DIR)/crash_tool.pl $(ESP_ROOT) $(BUILD_DIR)/$(MAIN_NAME).elf
 
+preproc:
+ifeq ($(SRC_FILE),)
+	$(error SRC_FILE must be defined)
+endif
+	$(CPP_COM) -E $(SRC_FILE)
+
 help: $(ARDUINO_MK)
 	@echo
 	@echo "Generic makefile for building Arduino esp8266 and esp32 projects"
@@ -491,6 +495,8 @@ help: $(ARDUINO_MK)
 	@echo "  monitor              Start serial monitor on the upload port"
 	@echo "  run                  Build flash and start serial monitor"
 	@echo "  crash                Analyze stack trace from a crash"
+	@echo "  preproc              Run compiler preprocessor on source file"
+	@echo "                         specified via SRC_FILE"
 	@echo "Configurable parameters:"
 	@echo "  SKETCH               Main source file"
 	@echo "                         If not specified the first sketch in current"

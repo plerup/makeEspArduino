@@ -330,3 +330,10 @@ After generating the configuration files makeEspArduino will launch Visual Studi
 #### Crash analysis
 
 The rule **crash** will enable you to paste the output of a program crash for esp8266 or esp32. Explanatory reason and call stack traceback will be listed with source file and line number for each call found.
+
+#### Compiler preprocessor
+
+Sometimes it can be useful to see the actual full source file content once all include files and macros have been expanded. The rule **preproc** is available for this purpose. The path of the source file to be analyzed is specified via the variable **SRC_FILE**. Example:
+
+    espmake preproc SRC_FILE=my_file.ino
+

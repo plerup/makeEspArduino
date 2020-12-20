@@ -106,6 +106,7 @@ foreach (`find $dir_spec -type d 2>/dev/null`) {
   s/\/$//;
   push(@search_dirs, $_) unless $exclude_match && /$exclude_match/;
 }
+@search_dirs = uniq(@search_dirs);
 
 # Search for used header files in all the specified source files
 my @spec_src = keys %src_files;
