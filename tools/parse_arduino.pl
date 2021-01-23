@@ -10,7 +10,7 @@
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
-# Copyright (c) 2016-2020 Peter Lerup. All rights reserved.
+# Copyright (c) 2016-2021 Peter Lerup. All rights reserved.
 #
 #====================================================================================
 
@@ -31,6 +31,15 @@ sub def_var {
   $vars{$name} = "\$($var)";
 }
 
+sub multi_com {
+  my ($match ) = @_;
+  my @result;
+  foreach my $name (sort keys %vars) {
+    push(@result, $vars{$name}) if $name =~ /^$match$/;
+  }
+  return join(" && \\\n", @result);
+}
+
 # Some defaults
 $vars{'runtime.platform.path'} = '$(ESP_ROOT)';
 $vars{'includes'} = '$(C_INCLUDES)';
@@ -40,6 +49,9 @@ $vars{'build.project_name'} = '$(MAIN_NAME)';
 $vars{'build.path'} = '$(BUILD_DIR)';
 $vars{'object_files'} = '$^ $(BUILD_INFO_OBJ)';
 $vars{'archive_file_path'} = '$(CORE_LIB)';
+$vars{'build.sslflags'} = '$(SSL_FLAGS)';
+$vars{'build.mmuflags'} = '$(MMU_FLAGS)';
+$vars{'build.vtable_flags'} = '$(VTABLE_FLAGS)';
 
 # Parse the files and define the corresponsing variables
 my $board_defined;
@@ -84,9 +96,6 @@ def_var('upload.resetmethod', 'UPLOAD_RESET');
 def_var('upload.speed', 'UPLOAD_SPEED');
 def_var('compiler.warning_flags', 'COMP_WARNINGS');
 $vars{'serial.port'} = '$(UPLOAD_PORT)';
-$vars{'recipe.objcopy.hex.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$(BOOT_LOADER)/;
-$vars{'recipe.objcopy.hex.1.pattern'} =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$(BOOT_LOADER)/;
-$vars{'recipe.hooks.linking.prelink.1.pattern'} =~ s/\{build.vtable_flags\}/\$(VTABLE_FLAGS)/;
 $vars{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$1\}/g;
 $vars{'compiler.cpreprocessor.flags'} .= " \$(C_PRE_PROC_FLAGS)";
 $vars{'build.extra_flags'} .= " \$(BUILD_EXTRA_FLAGS)";
@@ -102,7 +111,12 @@ foreach my $key (sort keys %vars) {
 }
 
 # Print the makefile content
+my $val;
 print "INCLUDE_VARIANT = $vars{'build.variant'}\n";
+print "VTABLE_FLAGS?=-DVTABLES_IN_FLASH\n";
+print "MMU_FLAGS?=-DMMU_IRAM_SIZE=0x8000 -DMMU_ICACHE_SIZE=0x8000\n";
+print "SSL_FLAGS?=\n";
+print "BOOT_LOADER?=\$(ESP_ROOT)/bootloaders/eboot/eboot.elf\n";
 print "# Commands\n";
 print "C_COM=\$(C_COM_PREFIX) $vars{'recipe.c.o.pattern'}\n";
 print "CPP_COM=\$(CPP_COM_PREFIX) $vars{'recipe.cpp.o.pattern'}\n";
@@ -111,10 +125,12 @@ print "LIB_COM=\"$vars{'compiler.path'}$vars{'compiler.ar.cmd'}\"\n";
 print "CORE_LIB_COM=$vars{'recipe.ar.pattern'}\n";
 print "LD_COM=$vars{'recipe.c.combine.pattern'}\n";
 print "PART_FILE?=\$(ESP_ROOT)/tools/partitions/default.csv\n";
-my $gen_part_com = $vars{'recipe.objcopy.eep.pattern'} || $vars{'recipe.objcopy.partitions.bin.pattern'};
-$gen_part_com =~ s/\"([^\"]+\.csv)\"/\$(PART_FILE)/;
-print "GEN_PART_COM=$gen_part_com\n";
-print "ELF2BIN_COM=", $vars{'recipe.objcopy.hex.pattern'} || $vars{'recipe.objcopy.hex.1.pattern'} || $vars{'recipe.objcopy.bin.pattern'}, "\n";
+$val = $vars{'recipe.objcopy.eep.pattern'} || $vars{'recipe.objcopy.partitions.bin.pattern'};
+$val =~ s/\"([^\"]+\.csv)\"/\$(PART_FILE)/;
+print "GEN_PART_COM=$val\n";
+($val = multi_com('recipe\.objcopy\.hex.*\.pattern')) =~ s/[^"]+\/bootloaders\/eboot\/eboot.elf/\$(BOOT_LOADER)/;
+$val ||= multi_com('recipe\.objcopy\.bin.*\.pattern');
+print "OBJCOPY=$val\n";
 print "SIZE_COM=$vars{'recipe.size.pattern'}\n";
 if ($vars{'tools.esptool.cmd'} !~ /\.py$/) {
   print "ESPTOOL_COM?=\$(error esptool must be installed for this operation! Run: pip install esptool)\n";
@@ -142,14 +158,13 @@ my $fs_upload_com = $vars{'tools.esptool.upload.pattern'};
 $fs_upload_com =~ s/(.+ -ca) .+/$1 \$(SPIFFS_START) -cf \$(FS_IMAGE)/;
 $fs_upload_com =~ s/(.+ --flash_size detect) .+/$1 \$(SPIFFS_START) \$(FS_IMAGE)/;
 print "FS_UPLOAD_COM?=$fs_upload_com\n";
-my $val = $vars{'recipe.hooks.core.prebuild.1.pattern'};
+$val = multi_com('recipe\.hooks\.core\.prebuild.*\.pattern');
 $val =~ s/bash -c "(.+)"/$1/;
 $val =~ s/(#define .+0x)(\`)/"\\$1\"$2/;
 $val =~ s/(\\)//;
 print "CORE_PREBUILD=$val\n";
-print "SKETCH_PREBUILD=$vars{'recipe.hooks.sketch.prebuild.1.pattern'}\n";
-print "VTABLE_FLAGS?=$vars{'build.vtable_flags'}\n";
-print "LINK_PREBUILD=$vars{'recipe.hooks.linking.prelink.1.pattern'}\n";
+print "SKETCH_PREBUILD=", multi_com('recipe\.hooks\.sketch\.prebuild.*\.pattern'), "\n";
+print "LINK_PREBUILD=", multi_com('recipe\.hooks\.linking\.prelink.*\.pattern'), "\n";
 print "MEM_FLASH=$vars{'recipe.size.regex'}\n";
 print "MEM_RAM=$vars{'recipe.size.regex.data'}\n";
 my $flash_info = $vars{'menu.FlashSize.' . $flashSize} || $vars{'menu.eesz.' . $flashSize};

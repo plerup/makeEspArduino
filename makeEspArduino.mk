@@ -7,7 +7,7 @@
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
-# Copyright (c) 2016-2020 Peter Lerup. All rights reserved.
+# Copyright (c) 2016-2021 Peter Lerup. All rights reserved.
 #
 #====================================================================================
 
@@ -76,9 +76,6 @@ BUILD_DIR ?= $(BUILD_ROOT)/$(MAIN_NAME)_$(BOARD)
 FS_TYPE ?= spiffs
 FS_DIR ?= $(dir $(SKETCH))data
 FS_RESTORE_DIR ?= $(BUILD_DIR)/file_system
-
-# Bootloader
-BOOT_LOADER ?= $(ESP_ROOT)/bootloaders/eboot/eboot.elf
 
 #====================================================================================
 # Standard build logic and values
@@ -323,7 +320,7 @@ $(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ_DEP)
 	$(CPP_COM) $(BUILD_INFO_CPP) -o $(BUILD_INFO_OBJ)
 	$(LD_COM) $(LD_EXTRA)
 	$(GEN_PART_COM)
-	$(ELF2BIN_COM)
+	$(OBJCOPY)
 	$(SIZE_COM) | perl $(__TOOLS_DIR)/mem_use.pl "$(MEM_FLASH)" "$(MEM_RAM)"
 ifneq ($(LWIP_INFO),)
 	@printf "LwIPVariant: $(LWIP_INFO)\n"
