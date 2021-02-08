@@ -535,8 +535,8 @@ all: $(BUILD_DIR) $(ARDUINO_MK) prebuild $(MAIN_EXE)
 prebuild:
 ifdef USE_PREBUILD
 	$(CORE_PREBUILD)
-endif
 	$(SKETCH_PREBUILD)
+endif
 
 # Include all available dependencies
 -include $(wildcard $(BUILD_DIR)/*$(DEP_EXT))

@@ -52,6 +52,7 @@ $vars{'archive_file_path'} = '$(CORE_LIB)';
 $vars{'build.sslflags'} = '$(SSL_FLAGS)';
 $vars{'build.mmuflags'} = '$(MMU_FLAGS)';
 $vars{'build.vtable_flags'} = '$(VTABLE_FLAGS)';
+$vars{'build.source.path'} = '$(dir $(SKETCH))';
 
 # Parse the files and define the corresponsing variables
 my $board_defined;
