@@ -104,6 +104,7 @@ my $dir_spec = join(" ", @libs);
 foreach (`find $dir_spec -type d 2>/dev/null`) {
   chomp;
   s/\/$//;
+  next if /LittleFS\/lib/; # Fix for now
   push(@search_dirs, $_) unless $exclude_match && /$exclude_match/;
 }
 @search_dirs = uniq(@search_dirs);
