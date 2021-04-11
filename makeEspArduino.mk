@@ -453,6 +453,11 @@ tools_dir:
 ram_usage: $(MAIN_EXE)
 	$(shell find $(TOOLS_ROOT) | grep 'gcc-nm') -Clrtd --size-sort $(BUILD_DIR)/$(MAIN_NAME).elf | grep -i ' [b] '
 
+OBJ_INFO_FORM ?= 0
+OBJ_INFO_SORT ?= 1
+obj_info: $(MAIN_EXE)
+	perl $(__TOOLS_DIR)/obj_info.pl "$(shell find $(TOOLS_ROOT) | grep 'elf-size$$')" "$(OBJ_INFO_FORM)" "$(OBJ_INFO_SORT)" $(BUILD_DIR)/*.o
+
 crash: $(MAIN_EXE)
 	perl $(__TOOLS_DIR)/crash_tool.pl $(ESP_ROOT) $(BUILD_DIR)/$(MAIN_NAME).elf
 
@@ -489,6 +494,7 @@ help: $(ARDUINO_MK)
 	@echo "  install              Create the commands \"espmake\" and \"espmake32\""
 	@echo "  vscode               Create config file for Visual Studio Code and launch"
 	@echo "  ram_usage            Show global variables RAM usage"
+	@echo "  obj_info             Show memory usage per object file"
 	@echo "  monitor              Start serial monitor on the upload port"
 	@echo "  run                  Build flash and start serial monitor"
 	@echo "  crash                Analyze stack trace from a crash"

@@ -337,3 +337,10 @@ Sometimes it can be useful to see the actual full source file content once all i
 
     espmake preproc SRC_FILE=my_file.ino
 
+#### Memory usage analysis
+
+There are two rules which can be used for analyzing the memory usage of a build.
+
+**ram_usage** will show the names of the variables in ram together with their size sorted in descending size order
+
+**obj_info** will show the flash and RAM memory usage for each individual object file. The different portions of the RAM usage will also be shown. A listing is produced with columns for the different values. The listing is formated by space separated constant width fields but this can be change to tab separated instead by defining the variable OBJ_INFO_FORM to 1. The listing is by default sorted by descending RAM values but this can be also be changed by defining the variable OBJ_INFO_SORT to a value between 0 and 4.
