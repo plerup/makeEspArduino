@@ -138,7 +138,7 @@ if ($vars{'tools.esptool.cmd'} !~ /\.py$/) {
 } else {
   print "ESPTOOL_COM?=$vars{'tools.esptool.path'}/$vars{'tools.esptool.cmd'}\n";
 }
-print "UPLOAD_COM?=$vars{'tools.esptool.upload.pattern'}\n";
+print "UPLOAD_COM?=$vars{'tools.esptool.upload.pattern'} $vars{'tools.esptool.upload.pattern_args'}\n";
 
 if ($vars{'build.spiffs_start'}) {
   print "SPIFFS_START?=$vars{'build.spiffs_start'}\n";
@@ -155,17 +155,15 @@ print "SPIFFS_BLOCK_SIZE?=$vars{'build.spiffs_blocksize'}\n";
 print "MK_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(SPIFFS_BLOCK_SIZE) -s \$(SPIFFS_SIZE) -c \$(FS_DIR) \$(FS_IMAGE)\n";
 print "RESTORE_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(SPIFFS_BLOCK_SIZE) -s \$(SPIFFS_SIZE) -u \$(FS_RESTORE_DIR) \$(FS_IMAGE)\n";
 
-my $fs_upload_com = $vars{'tools.esptool.upload.pattern'};
+my $fs_upload_com = $vars{'tools.esptool.upload.pattern'} . " $vars{'tools.esptool.upload.pattern_args'}";
 $fs_upload_com =~ s/(.+ -ca) .+/$1 \$(SPIFFS_START) -cf \$(FS_IMAGE)/;
 $fs_upload_com =~ s/(.+ --flash_size detect) .+/$1 \$(SPIFFS_START) \$(FS_IMAGE)/;
 print "FS_UPLOAD_COM?=$fs_upload_com\n";
-$val = multi_com('recipe\.hooks\.core\.prebuild.*\.pattern');
-$val =~ s/bash -c "(.+)"/$1/;
+$val = multi_com('recipe\.hooks*\.prebuild.*\.pattern');
+$val =~ s/bash -c "(.+)"/$1/g;
 $val =~ s/(#define .+0x)(\`)/"\\$1\"$2/;
-$val =~ s/(\\)//;
-print "CORE_PREBUILD=$val\n";
-print "SKETCH_PREBUILD=", multi_com('recipe\.hooks\.sketch\.prebuild.*\.pattern'), "\n";
-print "LINK_PREBUILD=", multi_com('recipe\.hooks\.linking\.prelink.*\.pattern'), "\n";
+print "PREBUILD=$val\n";
+print "PRELINK=", multi_com('recipe\.hooks\.linking\.prelink.*\.pattern'), "\n";
 print "MEM_FLASH=$vars{'recipe.size.regex'}\n";
 print "MEM_RAM=$vars{'recipe.size.regex.data'}\n";
 my $flash_info = $vars{'menu.FlashSize.' . $flashSize} || $vars{'menu.eesz.' . $flashSize};

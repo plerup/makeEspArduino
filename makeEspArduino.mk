@@ -41,6 +41,7 @@ endif
 
 CHIP ?= esp8266
 UC_CHIP := $(shell perl -e "print uc $(CHIP)")
+IS_ESP32 := $(if $(filter-out esp32,$(CHIP)),,1)
 
 # Serial flashing parameters
 UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
@@ -52,7 +53,7 @@ MONITOR_COM ?= python -m serial.tools.miniterm --rts=0 --dtr=0 $(UPLOAD_PORT) $(
 
 # OTA parameters
 OTA_ADDR ?=
-OTA_PORT ?= $(if $(filter $(CHIP), esp32),3232,8266)
+OTA_PORT ?= $(if $(IS_ESP32),3232,8266)
 OTA_PWD ?=
 
 OTA_ARGS = --progress --ip="$(OTA_ADDR)" --port="$(OTA_PORT)"
@@ -154,7 +155,7 @@ ifeq ($(BUILDING),)
   DEMO = 1
 endif
 ifdef DEMO
-  SKETCH := $(if $(filter $(CHIP), esp32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WiFi/examples/WiFiScan/WiFiScan.ino)
+  SKETCH := $(if $(IS_ESP32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WiFi/examples/WiFiScan/WiFiScan.ino)
 endif
 SKETCH ?= $(realpath $(wildcard *.ino *.pde))
 ifeq ($(SKETCH),)
@@ -313,7 +314,7 @@ BUILD_TIME = $(call time_string,"%H:%M:%S")
 
 $(MAIN_EXE): $(CORE_LIB) $(USER_LIBS) $(USER_OBJ_DEP)
 	@echo Linking $(MAIN_EXE)
-	$(LINK_PREBUILD)
+	$(PRELINK)
 	@echo "  Versions: $(SRC_GIT_VERSION), $(ESP_ARDUINO_VERSION)"
 	@echo 	'#include <buildinfo.h>' >$(BUILD_INFO_CPP)
 	@echo '_tBuildInfo _BuildInfo = {"$(BUILD_DATE)","$(BUILD_TIME)","$(SRC_GIT_VERSION)","$(ESP_ARDUINO_VERSION)"};' >>$(BUILD_INFO_CPP)
@@ -538,10 +539,11 @@ $(BUILD_DIR):
 .PHONY: all
 all: $(BUILD_DIR) $(ARDUINO_MK) prebuild $(MAIN_EXE)
 
+# Prebuild is currently only mandatory for esp32
+USE_PREBUILD ?= $(if $(IS_ESP32),1,)
 prebuild:
-ifdef USE_PREBUILD
-	$(CORE_PREBUILD)
-	$(SKETCH_PREBUILD)
+ifneq ($(USE_PREBUILD),)
+	$(PREBUILD)
 endif
 
 # Include all available dependencies
