@@ -22,6 +22,7 @@ my $os = shift;
 $os =~ s/Windows_NT/windows/;
 $os =~ s/Linux/linux/;
 $os =~ s/Darwin/macosx/;
+$os =~ s/OpenBSD/openbsd/;
 my $lwipvariant = shift;
 my %vars;
 

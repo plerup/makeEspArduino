@@ -27,6 +27,8 @@ ifeq ($(MAKEESPARDUINO_CONFIGS_ROOT),)
     MAKEESPARDUINO_CONFIGS_ROOT = $(shell cygpath -m $(LOCALAPPDATA)/makeEspArduino)
   else ifeq ($(OS), Darwin)
     MAKEESPARDUINO_CONFIGS_ROOT = $(HOME)/Library/makeEspArduino
+  else ifeq ($(OS), OpenBSD)
+    MAKEESPARDUINO_CONFIGS_ROOT = $(HOME)/.config/makeEspArduino
   else
     ifneq ($(XDG_CONFIG_HOME),)
       MAKEESPARDUINO_CONFIGS_ROOT = $(XDG_CONFIG_HOME)/makeEspArduino
@@ -44,8 +46,13 @@ UC_CHIP := $(shell perl -e "print uc $(CHIP)")
 IS_ESP32 := $(if $(filter-out esp32,$(CHIP)),,1)
 
 # Serial flashing parameters
-UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
-UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
+ifeq ($(OS), OpenBSD)
+	UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*U* 2>/dev/null | tail -1)
+	UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyU0)
+else
+	UPLOAD_PORT ?= $(shell ls -1tr /dev/tty*USB* 2>/dev/null | tail -1)
+	UPLOAD_PORT := $(if $(UPLOAD_PORT),$(UPLOAD_PORT),/dev/ttyS0)
+endif
 
 # Monitor definitions
 MONITOR_SPEED ?= 115200
@@ -90,6 +97,8 @@ git_description = $(shell git -C  $(1) describe --tags --always --dirty 2>/dev/n
 time_string = $(shell date +$(1))
 ifeq ($(OS), Darwin)
   find_files = $(shell find -E $2 -regex ".*\.($1)" | sed 's/\/\//\//')
+else ifeq ($(OS), OpenBSD)
+  find_files = $(shell find $2 | awk '/.*\.($1)/')
 else
   find_files = $(shell find $2 -regextype posix-egrep -regex ".*\.($1)")
 endif
@@ -101,20 +110,34 @@ ifndef ESP_ROOT
     ARDUINO_ROOT = $(shell cygpath -m $(LOCALAPPDATA)/Arduino15)
   else ifeq ($(OS), Darwin)
     ARDUINO_ROOT = $(HOME)/Library/Arduino15
+  else ifeq ($(OS), OpenBSD)
+    ARDUINO_ROOT = ${LOCALBASE}/share/arduino
   else
     ARDUINO_ROOT = $(HOME)/.arduino15
   endif
   ARDUINO_ESP_ROOT = $(ARDUINO_ROOT)/packages/$(CHIP)
-  ESP_ROOT := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/hardware/$(CHIP)/*))
+  ifeq ($(OS), OpenBSD)
+    ESP_ROOT = $(ARDUINO_ROOT)/hardware/espressif/$(CHIP)
+    ARDUINO_LIBS = ${LOCALBASE}/share/arduino/libraries
+    CUSTOM_LIBS += ${LOCALBASE}/avr/include
+  else
+    ESP_ROOT := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/hardware/$(CHIP)/*))
+    ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
+  endif
   ifeq ($(ESP_ROOT),)
     $(error No installed version of $(CHIP) Arduino found)
   endif
-  ARDUINO_LIBS = $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
-  COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
-  ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool*/*))
-  MK_FS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mk$(FS_TYPE)/*/*))
+  ifeq ($(OS), OpenBSD)
+    COMP_PATH := ${LOCALBASE}/bin
+    ESPTOOL_PATH := ${LOCALBASE}/bin
+    MK_FS_PATH := ${LOCALBASE}/bin
+  else
+    COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
+    ESPTOOL_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool*/*))
+    MK_FS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mkspiffs/*/*))
+  endif
 else
   # Location defined, assume it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
@@ -218,6 +241,8 @@ LWIP_VARIANT ?= $(shell $(BOARD_OP) $(BOARD) first_lwip)
 
 # Handle possible changed state i.e. make command line parameters or changed git versions
 ifeq ($(OS), Darwin)
+  CMD_LINE := $(shell ps $$PPID -o command | tail -1)
+else ifeq ($(OS), OpenBSD)
   CMD_LINE := $(shell ps $$PPID -o command | tail -1)
 else
   CMD_LINE := $(shell tr "\0" " " </proc/$$PPID/cmdline)
@@ -555,6 +580,8 @@ DEFAULT_GOAL ?= all
 # Build threads, default is using all cpus
 ifeq ($(OS), Darwin)
   BUILD_THREADS ?= $(shell sysctl -n hw.ncpu)
+else ifeq ($(OS), OpenBSD)
+  BUILD_THREADS ?= $(shell sysctl -n hw.ncpuonline)
 else
   BUILD_THREADS ?= $(shell nproc)
 endif
