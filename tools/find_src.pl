@@ -76,7 +76,7 @@ if ($libs[0] =~ /(.+)\/examples\//) {
 # First find possible explicit library source or achive files from the the specified list
 for (my $i = 0; $i < @libs; $i++ ) {
   my $path = $libs[$i];
-  if (!-d $path) {
+  if (-e $path && ! -d $path) {
     # File specification
     $libs[$i] = dirname($path);
     # Mark as known source directory, except for sketch directory
