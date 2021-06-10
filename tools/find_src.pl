@@ -78,13 +78,18 @@ for (my $i = 0; $i < @libs; $i++ ) {
   my $path = $libs[$i];
   if (!-d $path) {
     # File specification
+    my $wildcard = $path =~ /\*/;
+    if (!-e $path && !$wildcard) {
+      print STDERR "* Warning: Ignoring non existing file specification $path\n";
+      next;
+    }
     $libs[$i] = dirname($path);
     # Mark as known source directory, except for sketch directory
     $src_dirs{$libs[$i]}++ if $i;
     if ($path =~ /\.(a|lib)$/) {
       # Library file
       $user_libs{$path}++;
-    } elsif ($path =~ /\*/) {
+    } elsif ($wildcard) {
       # Wildcard source files
       foreach my $src (glob($path)) {
         $src_files{$src}++;

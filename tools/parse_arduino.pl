@@ -19,9 +19,6 @@ use strict;
 my $board = shift;
 my $flashSize = shift;
 my $os = shift;
-$os =~ s/Windows_NT/windows/;
-$os =~ s/Linux/linux/;
-$os =~ s/Darwin/macosx/;
 my $lwipvariant = shift;
 my %vars;
 
@@ -83,9 +80,7 @@ foreach my $fn (@ARGV) {
 # Some additional defaults may be needed
 $vars{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$(COMP_PATH)';
 $vars{'runtime.tools.xtensa-esp32-elf-gcc.path'} ||= '$(COMP_PATH)';
-$vars{'runtime.tools.esptool.path'} ||= '$(ESPTOOL_PATH)';
-$vars{'runtime.tools.python.path'} = '$(PYTHON_PATH)';
-$vars{'runtime.tools.python3.path'} = '$(PYTHON3_PATH)';
+$vars{'runtime.tools.python3.path'} ||= '$(PYTHON3_PATH)';
 
 die "* Unknown board $board\n" unless $board_defined;
 print "# Board definitions\n";
@@ -133,11 +128,6 @@ print "GEN_PART_COM=$val\n";
 $val ||= multi_com('recipe\.objcopy\.bin.*\.pattern');
 print "OBJCOPY=$val\n";
 print "SIZE_COM=$vars{'recipe.size.pattern'}\n";
-if ($vars{'tools.esptool.cmd'} !~ /\.py$/) {
-  print "ESPTOOL_COM?=\$(error esptool must be installed for this operation! Run: pip install esptool)\n";
-} else {
-  print "ESPTOOL_COM?=$vars{'tools.esptool.path'}/$vars{'tools.esptool.cmd'}\n";
-}
 print "UPLOAD_COM?=$vars{'tools.esptool.upload.pattern'} $vars{'tools.esptool.upload.pattern_args'}\n";
 
 if ($vars{'build.spiffs_start'}) {
