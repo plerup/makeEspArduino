@@ -131,7 +131,7 @@ ESPTOOL_COM ?= $(ESPTOOL) --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(
 ifeq ($(IS_ESP32),)
   # esp8266, use esptool directly instead of via tools/upload.py in order to avoid speed restrictions currently implied there
   UPLOAD_COM = $(ESPTOOL_COM) $(UPLOAD_RESET) write_flash 0x00000 $(BUILD_DIR)/$(MAIN_NAME).bin
-  FS_UPLOAD_COM = $(ESPTOOL_COM) -$(UPLOAD_RESET) write_flash $(SPIFFS_START) $(FS_IMAGE)
+  FS_UPLOAD_COM = $(ESPTOOL_COM) $(UPLOAD_RESET) write_flash $(SPIFFS_START) $(FS_IMAGE)
 endif
 
 # Detect if the specified goal involves building or not
