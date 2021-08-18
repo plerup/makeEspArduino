@@ -15,6 +15,7 @@
 
 use strict;
 use File::Basename;
+use Cwd;
 
 my %src_files;
 my %inc_dirs;
@@ -41,7 +42,7 @@ sub find_inc {
     next if $checked_files{$match};
     $checked_files{$match}++;
     for (my $i = 0; $i < @search_dirs; $i++) {
-      my $inc_file = "$search_dirs[$i]/$match";
+      my $inc_file = Cwd::abs_path("$search_dirs[$i]/$match");
       next unless -f $inc_file;
       find_inc($inc_file);
       my $dir = dirname($inc_file);
@@ -128,4 +129,4 @@ foreach (@search_dirs) {
 }
 print "\n";
 print "USER_SRC = ", join(" ", sort(keys %src_files)), "\n";
-print "USER_LIBS = ", join(" ", keys %user_libs), "\n"
+print "USER_LIBS = ", join(" ", keys %user_libs), "\n";

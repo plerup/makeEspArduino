@@ -151,6 +151,8 @@ Example:
 
 You can always use the rule **list_lib** to check what include directories and source files that was found during the search.
 
+The automatic search for used files via included header files does not work if the corresponding implementation source file are located in another directory than the header file. If you have problem with this, you can set the variable **EXPAND_LIBS** and then all source files in the directories specified via the LIBS variable will be added to the build. This may lead to compiling unnecessary files though.
+
 If you for some reason want to exclude some sub directories from the search list you can specify this using the variable **EXCLUDE_DIRS**, regular expressions are accepted here.
 
 **CHIP** Set to either esp8266 (default) or esp32
