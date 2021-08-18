@@ -255,6 +255,9 @@ All the settings for the file system are taken from the selected board's configu
 
 It is also possible to dump and recreate the complete file system from the device via the rule **dump_fs**. The corresponding flash section will be extracted and the individual files recreated in a directory in the build structure.
 
+#### Specifying custom partition schemes
+
+You may wish to specify a custom partitioning table, as defined in the [ESP32 docs](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html). You can do this by changing the **PART_FILE** variable in your make file. By default `$(ESP_ROOT)/tools/partitions/default.csv` will be used.
 
 #### Additional flash I/O operations
 
