@@ -285,7 +285,7 @@ $(CORE_LIB): $(CORE_OBJ)
 $(USER_OBJ_LIB): $(USER_OBJ)
 	@echo Creating object archive
 	rm -f $@
-	$(LIB_COM) cru $@ $^
+	$(LIB_COM) cr $@ $^
 
 # Possible user specific additional make rules
 ifdef USER_RULES
@@ -404,7 +404,7 @@ lib: $(LIB_OUT_FILE)
 $(LIB_OUT_FILE): $(filter-out $(BUILD_DIR)/$(MAIN_NAME).cpp$(OBJ_EXT),$(USER_OBJ))
 	@echo Building library $(LIB_OUT_FILE)
 	rm -f $(LIB_OUT_FILE)
-	$(LIB_COM) cru $(LIB_OUT_FILE) $^
+	$(LIB_COM) cr $(LIB_OUT_FILE) $^
 
 # Miscellaneous operations
 clean:
