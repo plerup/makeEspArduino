@@ -117,7 +117,7 @@ print "# Commands\n";
 print "C_COM=\$(C_COM_PREFIX) $vars{'recipe.c.o.pattern'}\n";
 print "CPP_COM=\$(CPP_COM_PREFIX) $vars{'recipe.cpp.o.pattern'}\n";
 print "S_COM=$vars{'recipe.S.o.pattern'}\n";
-print "LIB_COM=\"$vars{'compiler.path'}$vars{'compiler.ar.cmd'}\"\n";
+print "LIB_COM=\"$vars{'compiler.path'}$vars{'compiler.ar.cmd'}\" $vars{'compiler.ar.flags'}\n";
 print "CORE_LIB_COM=$vars{'recipe.ar.pattern'}\n";
 print "LD_COM=$vars{'recipe.c.combine.pattern'}\n";
 print "PART_FILE?=\$(ESP_ROOT)/tools/partitions/default.csv\n";

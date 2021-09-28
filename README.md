@@ -153,7 +153,7 @@ You can always use the rule **list_lib** to check what include directories and s
 
 The automatic search for used files via included header files does not work if the corresponding implementation source file are located in another directory than the header file. If you have problem with this, you can set the variable **EXPAND_LIBS** and then all source files in the directories specified via the LIBS variable will be added to the build. This may lead to compiling unnecessary files though.
 
-If you for some reason want to exclude some sub directories from the search list you can specify this using the variable **EXCLUDE_DIRS**, regular expressions are accepted here.
+If you for some reason want to exclude some sub directories from the search list you can specify this using the variable **EXCLUDE_DIRS**. The value is interpreted a regular expressions so multiple directories must be separated with | .
 
 **CHIP** Set to either esp8266 (default) or esp32
 
@@ -162,6 +162,12 @@ If you for some reason want to exclude some sub directories from the search list
 **BUILD_DIR** All intermediate build files (object, map files etc.) are stored in a separate directory controlled by this variable. By default this is set to a name consisting of the project and board names. This is just the directory name, the root of this directory is controlled by the variable **BUILD_ROOT**. Default for this is /tmp/mkESP but it can be set to a non-temporary location if so is desired.
 
 **BUILD_EXTRA_FLAGS** this variable can be setup to add additional parameters for the compilation commands. It will be placed last and thereby it is possible to override the preceding default ones.
+
+It is also possible to set file specific compilation parameters by defining a variable which starts with the name of the actual source file followed by the string **_CFLAGS**. Example:
+
+    my_class.cpp_CFLAGS = -DOPTION=1
+
+In this case the parameter -DOPTION=1 will be applied when compiling the file *m_class.cpp*. Please note that just the file name, not the path, should be used.
 
 There are some other important variables which corresponds to the settings which you normally do in the "Tools" menu in the Arduino IDE. The makefile will parse the Arduino IDE configuration files and use the same defaults as you would get when after selecting a board in the "Tools" menu.
 

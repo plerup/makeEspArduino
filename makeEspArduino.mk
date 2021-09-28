@@ -101,6 +101,7 @@ else
   MK_FS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/mk$(FS_TYPE)/mk$(FS_TYPE)))
 	PYTHON3_PATH := $(wildcard $(ESP_ROOT)/tools/python3)
 endif
+ESP_ROOT := $(abspath $(ESP_ROOT))
 ESP_LIBS = $(ESP_ROOT)/libraries
 SDK_ROOT = $(ESP_ROOT)/tools/sdk
 TOOLS_ROOT = $(ESP_ROOT)/tools
@@ -267,11 +268,11 @@ $(SKETCH_CPP): $(SKETCH)
 # Build rules for the different source file types
 $(BUILD_DIR)/%.cpp$(OBJ_EXT): %.cpp $(ARDUINO_MK) | $(GEN_H_FILES)
 	@echo  $(<F)
-	$(CPP_COM) $(CPP_EXTRA) $(abspath $<) -o $@
+	$(CPP_COM) $(CPP_EXTRA) $($(<F)_CFLAGS) $(abspath $<) -o $@
 
 $(BUILD_DIR)/%.c$(OBJ_EXT): %.c $(ARDUINO_MK) | $(GEN_H_FILES)
 	@echo  $(<F)
-	$(C_COM) $(C_EXTRA) $(abspath $<) -o $@
+	$(C_COM) $(C_EXTRA) $($(<F)_CFLAGS) $(abspath $<) -o $@
 
 $(BUILD_DIR)/%.S$(OBJ_EXT): %.S $(ARDUINO_MK) | $(GEN_H_FILES)
 	@echo  $(<F)
@@ -285,7 +286,7 @@ $(CORE_LIB): $(CORE_OBJ)
 $(USER_OBJ_LIB): $(USER_OBJ)
 	@echo Creating object archive
 	rm -f $@
-	$(LIB_COM) cru $@ $^
+	$(LIB_COM) $@ $^
 
 # Possible user specific additional make rules
 ifdef USER_RULES
@@ -404,7 +405,7 @@ lib: $(LIB_OUT_FILE)
 $(LIB_OUT_FILE): $(filter-out $(BUILD_DIR)/$(MAIN_NAME).cpp$(OBJ_EXT),$(USER_OBJ))
 	@echo Building library $(LIB_OUT_FILE)
 	rm -f $(LIB_OUT_FILE)
-	$(LIB_COM) cru $(LIB_OUT_FILE) $^
+	$(LIB_COM) $(LIB_OUT_FILE) $^
 
 # Miscellaneous operations
 clean:
