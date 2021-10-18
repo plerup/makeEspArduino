@@ -13,11 +13,11 @@
 #====================================================================================
 
 CONFIG_ROOT ?= $(HOME)/Library
-ARDUINO_ROOT ?= $(LOCALBASE)/share/arduino
+ARDUINO_ROOT ?= ${LOCALBASE}/share/arduino
 ARDUINO_HW_ESP_ROOT = $(ARDUINO_ROOT)/hardware/espressif/$(CHIP)
 UPLOAD_PORT_MATCH ?= /dev/tty*U*
 CMD_LINE = $(shell ps $$PPID -o command | tail -1)
 OS_NAME = openbsd
 BUILD_THREADS ?= $(shell sysctl -n hw.ncpuonline)
-ARDUINO_LIBS = $(LOCALBASE)/share/arduino/libraries
-CUSTOM_LIBS += $(LOCALBASE)/avr/include
+ARDUINO_LIBS = ${LOCALBASE}/share/arduino/libraries
+CUSTOM_LIBS += ${LOCALBASE}/avr/include
