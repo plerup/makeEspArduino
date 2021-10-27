@@ -190,7 +190,7 @@ $(SRC_LIST): $(MAKEFILE_LIST) $(FIND_SRC_CMD) | $(BUILD_DIR)
 -include $(SRC_LIST)
 
 # Use sketch copy with correct C++ extension
-SKETCH_CPP = $(BUILD_DIR)/$(notdir $(SKETCH)).cpp
+SKETCH_CPP = $(BUILD_DIR)/$(notdir $(MAIN_NAME)).cpp
 USER_SRC := $(subst $(SKETCH),$(SKETCH_CPP),$(USER_SRC))
 
 USER_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC)))
