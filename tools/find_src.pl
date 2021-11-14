@@ -121,6 +121,24 @@ foreach (@spec_src) {
   find_inc($_);
 }
 
+# Check for duplicates
+my %names;
+foreach (keys %src_files) {
+  if (/\/(\w+\.\w+)$/) {
+    $names{$1}++;
+    if ($names{$1} > 1) {
+      # Duplicate, add a rule to use a copy of this file
+      # instead but with a unique prefix. This is to avoid
+      # object file name clash
+      my $copy = "\$(BUILD_DIR)/$names{$1}_$1";
+      print "$copy: \n\tcp $_ $copy\n\n";
+      # Replace in the source file list
+      delete($src_files{$_});
+      $src_files{$copy}++;
+    }
+  }
+}
+
 # Print the result as makefile variable definitions
 print "USER_INC_DIRS = ";
 # Keep order

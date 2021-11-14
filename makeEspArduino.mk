@@ -189,9 +189,11 @@ $(SRC_LIST): $(MAKEFILE_LIST) $(FIND_SRC_CMD) | $(BUILD_DIR)
 
 -include $(SRC_LIST)
 
-# Use sketch copy with correct C++ extension
-SKETCH_CPP = $(BUILD_DIR)/$(notdir $(SKETCH)).cpp
-USER_SRC := $(subst $(SKETCH),$(SKETCH_CPP),$(USER_SRC))
+ifeq ($(suffix $(SKETCH)),.ino)
+  # Use sketch copy with correct C++ extension
+  SKETCH_CPP = $(BUILD_DIR)/$(notdir $(SKETCH)).cpp
+  USER_SRC := $(subst $(SKETCH),$(SKETCH_CPP),$(USER_SRC))
+endif
 
 USER_OBJ := $(patsubst %,$(BUILD_DIR)/%$(OBJ_EXT),$(notdir $(USER_SRC)))
 USER_DIRS := $(sort $(dir $(USER_SRC)))
