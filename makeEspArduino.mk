@@ -526,6 +526,7 @@ help: $(ARDUINO_MK)
 	@echo "  crash                Analyze stack trace from a crash"
 	@echo "  preproc              Run compiler preprocessor on source file"
 	@echo "                         specified via SRC_FILE"
+	@echo "  list_boards          Show list of boards from the Arduino core"
 	@echo "  info                 Show location and version of used esp Arduino"
 	@echo "Configurable parameters:"
 	@echo "  SKETCH               Main source file"
