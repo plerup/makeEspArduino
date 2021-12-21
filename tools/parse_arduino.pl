@@ -147,7 +147,7 @@ print "RESTORE_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(SPIFFS_BLOCK_SIZE) -s \$(SPIFFS_
 
 my $fs_upload_com = $vars{'tools.esptool.upload.pattern'} . " $vars{'tools.esptool.upload.pattern_args'}";
 $fs_upload_com =~ s/(.+ -ca) .+/$1 \$(SPIFFS_START) -cf \$(FS_IMAGE)/;
-$fs_upload_com =~ s/(.+ --flash_size detect) .+/$1 \$(SPIFFS_START) \$(FS_IMAGE)/;
+$fs_upload_com =~ s/(.+ --flash_size \S+) .+/$1 \$(SPIFFS_START) \$(FS_IMAGE)/;
 print "FS_UPLOAD_COM?=$fs_upload_com\n";
 $val = multi_com('recipe\.hooks*\.prebuild.*\.pattern');
 $val =~ s/bash -c "(.+)"/$1/g;

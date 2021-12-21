@@ -109,7 +109,9 @@ my $this_prop_json = <<"EOT";
   "name": "$name",
   "includePath": [$inc],
   "defines": [$def],
-  "compilerPath": "$comp_path"
+  "compilerPath": "$comp_path",
+  "cStandard": "c11",
+  "cppStandard": "c++11"
 }
 EOT
 make_portable($this_prop_json, $workspace_dir);
