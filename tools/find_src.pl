@@ -122,20 +122,33 @@ foreach (@spec_src) {
 }
 
 # Check for duplicates
-my %names;
+my %name_cnt;
+my %name_path;
 foreach (keys %src_files) {
-  if (/\/(\w+\.\w+)$/) {
-    $names{$1}++;
-    if ($names{$1} > 1) {
-      # Duplicate, add a rule to use a copy of this file
-      # instead but with a unique prefix. This is to avoid
-      # object file name clash
-      my $copy = "\$(BUILD_DIR)/$names{$1}_$1";
-      print "$copy: \n\tcp $_ $copy\n\n";
-      # Replace in the source file list
-      delete($src_files{$_});
-      $src_files{$copy}++;
+  my $name = basename($_);
+  $name_cnt{$name}++;
+  # Handle possible duplicates by adding rules to use
+  # copies of these files instead but with a unique prefix.
+  # This is to avoid object file name clash
+  if ($name_cnt{$name} > 1) {
+    my ($src, $dst);
+    if ($name_cnt{$name} == 2) {
+      # First duplicate, add copy rule and
+      # remove from source list
+      $src = $name_path{$name};
+      $dst = "\$(BUILD_DIR)/1_$name";
+      print "$dst: \n\tcp $src $dst\n\n";
+      delete($src_files{$src});
+      $src_files{$dst}++;
     }
+    # Copy rule for this file as well
+    $src = $_;
+    $dst = "\$(BUILD_DIR)/$name_cnt{$name}_$name";
+    print "$dst: \n\tcp $src $dst\n\n";
+    delete($src_files{$src});
+    $src_files{$dst}++;
+  } else {
+    $name_path{$name} = $_;
   }
 }
 
