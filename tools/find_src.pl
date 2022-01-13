@@ -23,6 +23,7 @@ my %user_libs;
 my @search_dirs;
 my %src_dirs;
 my %checked_files;
+my $exclude_match;
 
 sub uniq {
   my %seen;
@@ -51,6 +52,7 @@ sub find_inc {
         # Can not only search for file with same name as sometimes
         # the actual implementation of the header has another name
         foreach my $src (glob("$dir/*.cpp $dir/*.c $dir/*.S")) {
+          next if $exclude_match && $src =~ /$exclude_match/;
           $src_files{$src}++;
           find_inc($src);
         }
@@ -63,7 +65,21 @@ sub find_inc {
 
 #--------------------------------------------------------------------
 
-my $exclude_match = shift;
+sub handle_duplicate {
+  # Handle possible duplicates by adding rules to use
+  # copies of these files instead but with a unique prefix.
+  # This is to avoid object file name clash
+  my ($src, $dst) = @_;
+  print STDERR "* Duplicate:\n    $src\n  copied to:\n    $dst\n";
+  print "$dst: \n\tcp $src $dst\n\n";
+  delete($src_files{$src});
+  $src_files{$dst}++;
+}
+
+#--------------------------------------------------------------------
+
+$exclude_match = shift;
+$exclude_match .= ($exclude_match ? "|" : "") . '/LittleFS/lib/'; # Fix for now with LittleFS duplicate
 
 # Parameters are within quotes to delay possible wildcard file name expansions
 my @libs = split(" ", "@ARGV");
@@ -74,7 +90,7 @@ if ($libs[0] =~ /(.+)\/examples\//) {
   push(@libs, $src_dir) if -d $src_dir;
 }
 
-# First find possible explicit library source or achive files from the the specified list
+# First find possible explicit library source or archive files from the the specified list
 for (my $i = 0; $i < @libs; $i++ ) {
   my $path = $libs[$i];
   if (!-d $path) {
@@ -110,7 +126,6 @@ my $dir_spec = join(" ", @libs);
 foreach (`find $dir_spec -type d 2>/dev/null`) {
   chomp;
   s/\/$//;
-  next if /LittleFS\/lib/; # Fix for now
   push(@search_dirs, $_) unless $exclude_match && /$exclude_match/;
 }
 @search_dirs = uniq(@search_dirs);
@@ -127,26 +142,9 @@ my %name_path;
 foreach (keys %src_files) {
   my $name = basename($_);
   $name_cnt{$name}++;
-  # Handle possible duplicates by adding rules to use
-  # copies of these files instead but with a unique prefix.
-  # This is to avoid object file name clash
   if ($name_cnt{$name} > 1) {
-    my ($src, $dst);
-    if ($name_cnt{$name} == 2) {
-      # First duplicate, add copy rule and
-      # remove from source list
-      $src = $name_path{$name};
-      $dst = "\$(BUILD_DIR)/1_$name";
-      print "$dst: \n\tcp $src $dst\n\n";
-      delete($src_files{$src});
-      $src_files{$dst}++;
-    }
-    # Copy rule for this file as well
-    $src = $_;
-    $dst = "\$(BUILD_DIR)/$name_cnt{$name}_$name";
-    print "$dst: \n\tcp $src $dst\n\n";
-    delete($src_files{$src});
-    $src_files{$dst}++;
+    handle_duplicate($name_path{$name}, "\$(BUILD_DIR)/1_$name") if $name_cnt{$name} == 2;
+    handle_duplicate($_, "\$(BUILD_DIR)/$name_cnt{$name}_$name");
   } else {
     $name_path{$name} = $_;
   }
