@@ -51,7 +51,7 @@ $vars{'build.mmuflags'} = '$(MMU_FLAGS)';
 $vars{'build.vtable_flags'} = '$(VTABLE_FLAGS)';
 $vars{'build.source.path'} = '$(dir $(SKETCH))';
 
-# Parse the files and define the corresponsing variables
+# Parse the files and define the corresponding variables
 my $board_defined;
 foreach my $fn (@ARGV) {
   my $f;
@@ -90,7 +90,6 @@ def_var('build.flash_mode', 'FLASH_MODE');
 def_var('build.flash_freq', 'FLASH_SPEED');
 def_var('upload.resetmethod', 'UPLOAD_RESET');
 def_var('upload.speed', 'UPLOAD_SPEED');
-def_var('compiler.warning_flags', 'COMP_WARNINGS');
 $vars{'serial.port'} = '$(UPLOAD_PORT)';
 $vars{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$1\}/g;
 $vars{'compiler.cpreprocessor.flags'} .= " \$(C_PRE_PROC_FLAGS)";
@@ -105,6 +104,7 @@ foreach my $key (sort keys %vars) {
    $vars{$key} =~ s/ -o\s+$//;
    $vars{$key} =~ s/(-D\w+=)"([^"]+)"/$1\\"$2\\"/g;
 }
+def_var('compiler.warning_flags', 'COMP_WARNINGS');
 
 # Print the makefile content
 my $val;
