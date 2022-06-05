@@ -72,6 +72,7 @@ BUILD_DIR ?= $(BUILD_ROOT)/$(MAIN_NAME)_$(BOARD)
 
 # File system and corresponding disk directories
 FS_TYPE ?= spiffs
+MK_FS_MATCH = mk$(shell perl -e "print lc $(FS_TYPE)")
 FS_DIR ?= $(dir $(SKETCH))data
 FS_RESTORE_DIR ?= $(BUILD_DIR)/file_system
 
@@ -93,12 +94,12 @@ ifndef ESP_ROOT
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
-  MK_FS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/mk$(FS_TYPE)/*/mk$(FS_TYPE)))
+  MK_FS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/$(MK_FS_MATCH)/*/$(MK_FS_MATCH)))
   PYTHON3_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/python3/*))
 else
   # Location defined, assume that it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
-  MK_FS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/mk$(FS_TYPE)/mk$(FS_TYPE)))
+  MK_FS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/$(MK_FS_MATCH)/$(MK_FS_MATCH)))
 	PYTHON3_PATH := $(wildcard $(ESP_ROOT)/tools/python3)
 endif
 ESP_ROOT := $(abspath $(ESP_ROOT))
@@ -115,6 +116,11 @@ NO_PY_WRAP ?= $(if $(IS_ESP32),1,)
 # Validate the selected version of ESP Arduino
 ifeq ($(wildcard $(ESP_ROOT)/cores/$(CHIP)),)
   $(error $(ESP_ROOT) is not a vaild directory for $(CHIP))
+endif
+
+# Validate the file system type
+ifeq ($(wildcard $(MK_FS_PATH)),)
+  $(error Invalid file system: "$(FS_TYPE)")
 endif
 
 # Set possible default board variant and validate
