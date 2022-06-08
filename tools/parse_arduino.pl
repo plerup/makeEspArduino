@@ -16,6 +16,8 @@
 
 use strict;
 
+my $esp_root = shift;
+my $ard_esp_root = shift;
 my $board = shift;
 my $flashSize = shift;
 my $os = shift;
@@ -38,12 +40,14 @@ sub multi_com {
 }
 
 # Some defaults
-$vars{'runtime.platform.path'} = '$(ESP_ROOT)';
+$vars{'runtime.platform.path'} = $esp_root;
 $vars{'includes'} = '$(C_INCLUDES)';
 $vars{'runtime.ide.version'} = '10605';
+$vars{'runtime.ide.path'} = $esp_root;
 $vars{'build.arch'} = '$(UC_CHIP)';
 $vars{'build.project_name'} = '$(MAIN_NAME)';
 $vars{'build.path'} = '$(BUILD_DIR)';
+$vars{'build.core.path'} = '$(BUILD_DIR)';
 $vars{'object_files'} = '$^ $(BUILD_INFO_OBJ)';
 $vars{'archive_file_path'} = '$(CORE_LIB)';
 $vars{'build.sslflags'} = '$(SSL_FLAGS)';
@@ -77,9 +81,14 @@ foreach my $fn (@ARGV) {
   }
   close($f);
 }
-# Some additional defaults may be needed
+# Disable the new options handling as makeEspArduino already has this functionality
+$vars{'build.opt.flags'} = "";
+# Some additional defaults may be needed if missing
+$vars{'runtime.tools.xtensa-esp32-elf-gcc.path'} ||= "{runtime.platform.path}/tools/xtensa-esp32-elf";
+$vars{'runtime.tools.xtensa-esp32s2-elf-gcc.path'} ||= "{runtime.platform.path}/tools/xtensa-esp32s2-elf";
+$vars{'runtime.tools.xtensa-esp32s3-elf-gcc.path'} ||= "{runtime.platform.path}/tools/xtensa-esp32s3-elf";
+$vars{'runtime.tools.riscv32-esp-elf-gcc.path'} ||= "{runtime.platform.path}/tools/riscv32-esp-elf";
 $vars{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$(COMP_PATH)';
-$vars{'runtime.tools.xtensa-esp32-elf-gcc.path'} ||= '$(COMP_PATH)';
 $vars{'runtime.tools.python3.path'} ||= '$(PYTHON3_PATH)';
 
 die "* Unknown board $board\n" unless $board_defined;
@@ -95,14 +104,22 @@ $vars{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$1\}/g
 $vars{'compiler.cpreprocessor.flags'} .= " \$(C_PRE_PROC_FLAGS)";
 $vars{'build.extra_flags'} .= " \$(BUILD_EXTRA_FLAGS)";
 
-# Some additional replacements
+$vars{'tools.esptool.path'} = "$esp_root/tools";
+# Expand all variables
 foreach my $key (sort keys %vars) {
-   while ($vars{$key} =~/\{/) {
-      $vars{$key} =~ s/\{([\w\-\.]+)\}/$vars{$1}/;
-      $vars{$key} =~ s/""//;
-   }
-   $vars{$key} =~ s/ -o\s+$//;
-   $vars{$key} =~ s/(-D\w+=)"([^"]+)"/$1\\"$2\\"/g;
+  while ($vars{$key} =~/\{/) {
+    $vars{$key} =~ s/\{([\w\-\.]+)\}/$vars{$1}/;
+    $vars{$key} =~ s/""//;
+  }
+  # Fix for esp32 when using Arduino installation
+  if ($key eq "compiler.path" && !(-e $vars{$key}) && ($vars{$key} !~ /\$\(COMP_PATH/)) {
+    $vars{$key} =~ s/\Q$esp_root/$ard_esp_root/;
+    $vars{$key} =~ s/\/bin\/$//;
+    $vars{$key} = glob("$vars{$key}*/*/bin/");
+  }
+  # Some additional replacements
+  $vars{$key} =~ s/ -o\s+$//;
+  $vars{$key} =~ s/(-D\w+=)"([^"]+)"/$1\\"$2\\"/g;
 }
 def_var('compiler.warning_flags', 'COMP_WARNINGS');
 
@@ -112,7 +129,7 @@ print "INCLUDE_VARIANT = $vars{'build.variant'}\n";
 print "VTABLE_FLAGS?=-DVTABLES_IN_FLASH\n";
 print "MMU_FLAGS?=-DMMU_IRAM_SIZE=0x8000 -DMMU_ICACHE_SIZE=0x8000\n";
 print "SSL_FLAGS?=\n";
-print "BOOT_LOADER?=\$(ESP_ROOT)/bootloaders/eboot/eboot.elf\n";
+print "BOOT_LOADER?=$esp_root/bootloaders/eboot/eboot.elf\n";
 print "# Commands\n";
 print "C_COM=\$(C_COM_PREFIX) $vars{'recipe.c.o.pattern'}\n";
 print "CPP_COM=\$(CPP_COM_PREFIX) $vars{'recipe.cpp.o.pattern'}\n";
@@ -120,7 +137,7 @@ print "S_COM=$vars{'recipe.S.o.pattern'}\n";
 print "LIB_COM=\"$vars{'compiler.path'}$vars{'compiler.ar.cmd'}\" $vars{'compiler.ar.flags'}\n";
 print "CORE_LIB_COM=$vars{'recipe.ar.pattern'}\n";
 print "LD_COM=$vars{'recipe.c.combine.pattern'}\n";
-print "PART_FILE?=\$(ESP_ROOT)/tools/partitions/default.csv\n";
+print "PART_FILE?=$esp_root/tools/partitions/default.csv\n";
 $val = $vars{'recipe.objcopy.eep.pattern'} || $vars{'recipe.objcopy.partitions.bin.pattern'};
 $val =~ s/\"([^\"]+\.csv)\"/\$(PART_FILE)/;
 print "GEN_PART_COM=$val\n";

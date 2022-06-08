@@ -84,7 +84,7 @@ find_files = $(shell find $2 | awk '/.*\.($1)$$/')
 # ESP Arduino directories
 ifndef ESP_ROOT
   # Location not defined, find and use possible version in the Arduino IDE installation
-	ARDUINO_ROOT ?= $(HOME)/.arduino15
+  ARDUINO_ROOT ?= $(HOME)/.arduino15
   ARDUINO_ESP_ROOT = $(ARDUINO_ROOT)/packages/$(CHIP)
   ESP_ROOT := $(if $(ARDUINO_HW_ESP_ROOT),$(ARDUINO_HW_ESP_ROOT),$(lastword $(wildcard $(ARDUINO_ESP_ROOT)/hardware/$(CHIP)/*)))
   ifeq ($(ESP_ROOT),)
@@ -100,7 +100,7 @@ else
   # Location defined, assume that it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
   MK_FS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/$(MK_FS_MATCH)/$(MK_FS_MATCH)))
-	PYTHON3_PATH := $(wildcard $(ESP_ROOT)/tools/python3)
+  PYTHON3_PATH := $(wildcard $(ESP_ROOT)/tools/python3)
 endif
 ESP_ROOT := $(abspath $(ESP_ROOT))
 ESP_LIBS = $(ESP_ROOT)/libraries
@@ -233,7 +233,7 @@ OS_NAME ?= linux
 ARDUINO_DESC := $(shell find -L $(ESP_ROOT) -maxdepth 1 -name "*.txt" | sort)
 $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) $(__TOOLS_DIR)/parse_arduino.pl | $(BUILD_DIR)
 	$(if $(BUILDING),echo "- Parsing Arduino configuration files ...",)
-	perl $(__TOOLS_DIR)/parse_arduino.pl $(BOARD) '$(FLASH_DEF)' '$(OS_NAME)' '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
+	perl $(__TOOLS_DIR)/parse_arduino.pl '$(ESP_ROOT)' '$(ARDUINO_ESP_ROOT)' $(BOARD) '$(FLASH_DEF)' '$(OS_NAME)' '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
 -include $(ARDUINO_MK)
 
