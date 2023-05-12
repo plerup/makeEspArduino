@@ -98,12 +98,12 @@ ifndef ESP_ROOT
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
-  MK_FS_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/$(MK_FS_MATCH)/*/$(MK_FS_MATCH)))
+  MK_FS_PATH ?= $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/$(MK_FS_MATCH)/*/$(MK_FS_MATCH)))
   PYTHON3_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/python3/*))
 else
   # Location defined, assume that it is a git clone
   ESP_ARDUINO_VERSION = $(call git_description,$(ESP_ROOT))
-  MK_FS_PATH := $(lastword $(wildcard $(ESP_ROOT)/tools/$(MK_FS_MATCH)/$(MK_FS_MATCH)))
+  MK_FS_PATH ?= $(lastword $(wildcard $(ESP_ROOT)/tools/$(MK_FS_MATCH)/$(MK_FS_MATCH)))
   PYTHON3_PATH := $(wildcard $(ESP_ROOT)/tools/python3)
 endif
 ESP_ROOT := $(abspath $(ESP_ROOT))

@@ -21,3 +21,4 @@ OS_NAME = openbsd
 BUILD_THREADS ?= $(shell sysctl -n hw.ncpuonline)
 ARDUINO_LIBS = $(LOCALBASE)/share/arduino/libraries
 CUSTOM_LIBS += $(LOCALBASE)/avr/include
+MK_FS_PATH = $(LOCALBASE)/bin/mkspiffs
