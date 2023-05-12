@@ -52,9 +52,13 @@ MONITOR_COM ?= $(if $(NO_PY_WRAP),python3,$(PY_WRAP)) -m serial.tools.miniterm $
 
 # OTA parameters
 OTA_ADDR ?=
+OTA_HPORT ?=
 OTA_PORT ?= $(if $(IS_ESP32),3232,8266)
 OTA_PWD ?=
 OTA_ARGS = --progress --ip="$(OTA_ADDR)" --port="$(OTA_PORT)"
+ifneq ($(OTA_HPORT),)
+  OTA_ARGS += --host_port="$(OTA_HPORT)"
+endif
 ifneq ($(OTA_PWD),)
   OTA_ARGS += --auth="$(OTA_PWD)"
 endif
@@ -511,7 +515,7 @@ help: $(ARDUINO_MK)
 	@echo "  flash                Build and and flash the project application"
 	@echo "  flash_fs             Build and and flash file system (when applicable)"
 	@echo "  ota                  Build and and flash via OTA"
-	@echo "                         Params: OTA_ADDR, OTA_PORT and OTA_PWD"
+	@echo "                         Params: OTA_ADDR, OTA_HPORT, OTA_PORT and OTA_PWD"
 	@echo "  ota_fs               Build and and flash file system via OTA"
 	@echo "  http                 Build and and flash via http (curl)"
 	@echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
