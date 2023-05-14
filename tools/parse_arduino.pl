@@ -104,7 +104,7 @@ $vars{'tools.esptool.upload.pattern'} =~ s/\{(cmd|path)\}/\{tools.esptool.$1\}/g
 $vars{'compiler.cpreprocessor.flags'} .= " \$(C_PRE_PROC_FLAGS)";
 $vars{'build.extra_flags'} .= " \$(BUILD_EXTRA_FLAGS)";
 
-$vars{'tools.esptool.path'} = "$esp_root/tools";
+$vars{'tools.esptool.path'} = "\$(dir \$(ESPTOOL_FILE))";
 # Expand all variables
 foreach my $key (sort keys %vars) {
   while ($vars{$key} =~/\{/) {

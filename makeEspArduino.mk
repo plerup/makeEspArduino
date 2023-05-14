@@ -136,8 +136,8 @@ else ifeq ($(shell $(BOARD_OP) $(BOARD) check),)
 endif
 
 # Handle esptool variants
-ESPTOOL_EXT = $(if $(IS_ESP32),,.py)
-ESPTOOL ?= $(if $(NO_PY_WRAP),$(ESP_ROOT)/tools/esptool/esptool$(ESPTOOL_EXT),$(PY_WRAP) esptool)
+ESPTOOL_FILE = $(firstword $(wildcard $(ESP_ROOT)/tools/esptool/esptool.py) $(ESP_ROOT)/tools/esptool/esptool )
+ESPTOOL ?= $(if $(NO_PY_WRAP),$(ESPTOOL_FILE),$(PY_WRAP) esptool)
 ESPTOOL_COM ?= $(ESPTOOL) --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(CHIP)
 ifeq ($(IS_ESP32),)
   # esp8266, use esptool directly instead of via tools/upload.py in order to avoid speed restrictions currently implied there
@@ -267,6 +267,16 @@ endif
 
 # Generated header files
 GEN_H_FILES += $(BUILD_INFO_H)
+
+# Special handling needed for esp32 build_opt.h
+ifneq ($(IS_ESP32),)
+BUILD_OPT_NAME = build_opt.h
+BUILD_OPT_SRC = $(firstword $(wildcard $(dir $(SKETCH))/$(BUILD_OPT_NAME) /dev/null))
+BUILD_OPT_DST = $(BUILD_DIR)/$(BUILD_OPT_NAME)
+GEN_H_FILES += $(BUILD_OPT_DST)
+$(BUILD_OPT_DST): $(BUILD_OPT_SRC) | $(BUILD_DIR)
+	cp $(BUILD_OPT_SRC) $(BUILD_OPT_DST)
+endif
 
 # Build output root directory
 $(BUILD_DIR):
