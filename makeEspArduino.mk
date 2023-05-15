@@ -7,7 +7,7 @@
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
-# Copyright (c) 2016-2021 Peter Lerup. All rights reserved.
+# Copyright (c) 2016-2023 Peter Lerup. All rights reserved.
 #
 #====================================================================================
 
@@ -136,9 +136,10 @@ else ifeq ($(shell $(BOARD_OP) $(BOARD) check),)
 endif
 
 # Handle esptool variants
+MCU ?= $(CHIP)
 ESPTOOL_FILE = $(firstword $(wildcard $(ESP_ROOT)/tools/esptool/esptool.py) $(ESP_ROOT)/tools/esptool/esptool )
 ESPTOOL ?= $(if $(NO_PY_WRAP),$(ESPTOOL_FILE),$(PY_WRAP) esptool)
-ESPTOOL_COM ?= $(ESPTOOL) --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(CHIP)
+ESPTOOL_COM ?= $(ESPTOOL) --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(MCU)
 ifeq ($(IS_ESP32),)
   # esp8266, use esptool directly instead of via tools/upload.py in order to avoid speed restrictions currently implied there
   UPLOAD_COM = $(ESPTOOL_COM) $(UPLOAD_RESET) write_flash 0x00000 $(BUILD_DIR)/$(MAIN_NAME).bin
@@ -157,6 +158,7 @@ ifdef DEMO
   SKETCH := $(if $(IS_ESP32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WiFi/examples/WiFiScan/WiFiScan.ino)
 endif
 SKETCH ?= $(abspath $(wildcard *.ino *.pde))
+SKETCH := $(wildcard $(SKETCH))
 ifeq ($(SKETCH),)
   $(error No sketch specified or found. Use "DEMO=1" for testing)
 endif
@@ -197,7 +199,9 @@ $(SRC_LIST): $(MAKEFILE_LIST) $(FIND_SRC_CMD) | $(BUILD_DIR)
 	$(if $(BUILDING),echo "- Finding all involved files for the build ...",)
 	perl $(FIND_SRC_CMD) "$(EXCLUDE_DIRS)" $(SKETCH) "$(CUSTOM_LIBS)" "$(_LIBS)" $(ESP_LIBS) $(ARDUINO_LIBS) >$(SRC_LIST)
 
+ifneq ($(MAKECMDGOALS),clean)
 -include $(SRC_LIST)
+endif
 
 ifeq ($(suffix $(SKETCH)),.ino)
   # Use sketch copy with correct C++ extension
@@ -239,7 +243,9 @@ $(ARDUINO_MK): $(ARDUINO_DESC) $(MAKEFILE_LIST) $(__TOOLS_DIR)/parse_arduino.pl 
 	$(if $(BUILDING),echo "- Parsing Arduino configuration files ...",)
 	perl $(__TOOLS_DIR)/parse_arduino.pl '$(ESP_ROOT)' '$(ARDUINO_ESP_ROOT)' $(BOARD) '$(FLASH_DEF)' '$(OS_NAME)' '$(LWIP_VARIANT)' $(ARDUINO_EXTRA_DESC) $(ARDUINO_DESC) >$(ARDUINO_MK)
 
+ifneq ($(MAKECMDGOALS),clean)
 -include $(ARDUINO_MK)
+endif
 
 # Compilation directories and path
 INCLUDE_DIRS += $(CORE_DIR) $(ESP_ROOT)/variants/$(INCLUDE_VARIANT) $(BUILD_DIR)
@@ -584,6 +590,7 @@ help: $(ARDUINO_MK)
 info:
 	echo == Build info
 	echo "  CHIP:        $(CHIP)"
+	echo "  MCU:         $(MCU)"
 	echo "  ESP_ROOT:    $(ESP_ROOT)"
 	echo "  Version:     $(ESP_ARDUINO_VERSION)"
 	echo "  Threads:     $(BUILD_THREADS)"

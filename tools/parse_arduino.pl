@@ -10,7 +10,7 @@
 # General and full license information is available at:
 #    https://github.com/plerup/makeEspArduino
 #
-# Copyright (c) 2016-2021 Peter Lerup. All rights reserved.
+# Copyright (c) 2016-2023 Peter Lerup. All rights reserved.
 #
 #====================================================================================
 
@@ -54,6 +54,7 @@ $vars{'build.sslflags'} = '$(SSL_FLAGS)';
 $vars{'build.mmuflags'} = '$(MMU_FLAGS)';
 $vars{'build.vtable_flags'} = '$(VTABLE_FLAGS)';
 $vars{'build.source.path'} = '$(dir $(SKETCH))';
+$vars{'build.variant.path'} = '$(ESP_ROOT)/variants/' . $board;
 
 # Parse the files and define the corresponding variables
 my $board_defined;
@@ -75,6 +76,7 @@ foreach my $fn (@ARGV) {
     $key =~ s/$board\.menu\.ResetMethod\.[^\.]+\.//;
     $key =~ s/$board\.menu\.FlashMode\.[^\.]+\.//;
     $key =~ s/$board\.menu\.(?:LwIPVariant|ip)\.$lwipvariant\.//;
+    $key =~ s/$board\.menu\.PartitionScheme\.[^\.]+\.//;
     $key =~ s/^$board\.//;
     $vars{$key} ||= $val;
     $vars{$1} = $vars{$key} if $key =~ /(.+)\.$os$/;
@@ -125,6 +127,7 @@ def_var('compiler.warning_flags', 'COMP_WARNINGS');
 
 # Print the makefile content
 my $val;
+print("MCU = $vars{'build.mcu'}\n");
 print "INCLUDE_VARIANT = $vars{'build.variant'}\n";
 print "VTABLE_FLAGS?=-DVTABLES_IN_FLASH\n";
 print "MMU_FLAGS?=-DMMU_IRAM_SIZE=0x8000 -DMMU_ICACHE_SIZE=0x8000\n";
