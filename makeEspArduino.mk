@@ -156,9 +156,10 @@ ifeq ($(BUILDING),)
 endif
 ifdef DEMO
   SKETCH := $(if $(IS_ESP32),$(ESP_LIBS)/WiFi/examples/WiFiScan/WiFiScan.ino,$(ESP_LIBS)/ESP8266WiFi/examples/WiFiScan/WiFiScan.ino)
+else
+  SKETCH ?= $(wildcard *.ino *.pde)
 endif
-SKETCH ?= $(abspath $(wildcard *.ino *.pde))
-SKETCH := $(wildcard $(SKETCH))
+SKETCH := $(realpath $(wildcard $(SKETCH)))
 ifeq ($(SKETCH),)
   $(error No sketch specified or found. Use "DEMO=1" for testing)
 endif
@@ -197,7 +198,7 @@ SRC_LIST = $(BUILD_DIR)/src_list.mk
 FIND_SRC_CMD = $(__TOOLS_DIR)/find_src.pl
 $(SRC_LIST): $(MAKEFILE_LIST) $(FIND_SRC_CMD) | $(BUILD_DIR)
 	$(if $(BUILDING),echo "- Finding all involved files for the build ...",)
-	perl $(FIND_SRC_CMD) "$(EXCLUDE_DIRS)" $(SKETCH) "$(CUSTOM_LIBS)" "$(_LIBS)" $(ESP_LIBS) $(ARDUINO_LIBS) >$(SRC_LIST)
+	perl $(FIND_SRC_CMD) "$(EXCLUDE_DIRS)" $(SKETCH) "$(realpath $(CUSTOM_LIBS))" "$(_LIBS)" $(ESP_LIBS) $(ARDUINO_LIBS) >$(SRC_LIST)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(SRC_LIST)
@@ -420,7 +421,7 @@ dump_fs:
 restore_flash:
 	$(CHECK_PORT)
 	@echo Restoring flash memory from file: $(FLASH_FILE)
-	$(ESPTOOL_COM) -a soft_reset write_flash 0 $(FLASH_FILE)
+	$(ESPTOOL_COM) $(UPLOAD_RESET) write_flash 0 $(FLASH_FILE)
 
 erase_flash:
 	$(CHECK_PORT)

@@ -92,12 +92,14 @@ $vars{'runtime.tools.xtensa-esp32s3-elf-gcc.path'} ||= "{runtime.platform.path}/
 $vars{'runtime.tools.riscv32-esp-elf-gcc.path'} ||= "{runtime.platform.path}/tools/riscv32-esp-elf";
 $vars{'runtime.tools.xtensa-lx106-elf-gcc.path'} ||= '$(COMP_PATH)';
 $vars{'runtime.tools.python3.path'} ||= '$(PYTHON3_PATH)';
+$vars{'upload.resetmethod'} ||= "--before default_reset --after hard_reset";
 
 die "* Unknown board $board\n" unless $board_defined;
 print "# Board definitions\n";
 def_var('build.code_debug', 'CORE_DEBUG_LEVEL');
 def_var('build.f_cpu', 'F_CPU');
 def_var('build.flash_mode', 'FLASH_MODE');
+def_var('build.cdc_on_boot', 'CDC_ON_BOOT');
 def_var('build.flash_freq', 'FLASH_SPEED');
 def_var('upload.resetmethod', 'UPLOAD_RESET');
 def_var('upload.speed', 'UPLOAD_SPEED');

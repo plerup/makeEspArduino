@@ -80,6 +80,7 @@ sub handle_duplicate {
 
 $exclude_match = shift;
 $exclude_match .= ($exclude_match ? "|" : "") . '/LittleFS/lib/'; # Fix for now with LittleFS duplicate
+$exclude_match .= "|/.git/"; # Avoid finding files in git directory
 
 # Parameters are within quotes to delay possible wildcard file name expansions
 my @libs = split(" ", "@ARGV");
