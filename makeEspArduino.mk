@@ -94,7 +94,12 @@ ifndef ESP_ROOT
   ifeq ($(ESP_ROOT),)
     $(error No installed version of $(CHIP) Arduino found)
   endif
-  ARDUINO_LIBS ?= $(shell grep -o "sketchbook.path=.*" $(ARDUINO_ROOT)/preferences.txt 2>/dev/null | cut -f2- -d=)/libraries
+  ARDUINO_PREFS = $(wildcard $(ARDUINO_ROOT)/preferences.txt)
+  ifeq ($(ARDUINO_PREFS),)
+    ARDUINO_LIBS ?= $(ARDUINO_ROOT)/libraries $(HOME)/Arduino/libraries
+	else
+    ARDUINO_LIBS ?= $(shell grep -o "sketchbook.path=.*" $(ARDUINO_PREFS) 2>/dev/null | cut -f2- -d=)/libraries
+	endif
   ESP_ARDUINO_VERSION := $(notdir $(ESP_ROOT))
   # Find used version of compiler and tools
   COMP_PATH := $(lastword $(wildcard $(ARDUINO_ESP_ROOT)/tools/xtensa-*/*))
@@ -137,7 +142,9 @@ endif
 
 # Handle esptool variants
 MCU ?= $(CHIP)
-ESPTOOL_FILE = $(firstword $(wildcard $(ESP_ROOT)/tools/esptool/esptool.py) $(ESP_ROOT)/tools/esptool/esptool )
+ESPTOOL_FILE = $(firstword $(wildcard $(ESP_ROOT)/tools/esptool/esptool.py) \
+                           $(wildcard $(ARDUINO_ESP_ROOT)/tools/esptool_py/*/esptool.py) \
+													 $(ESP_ROOT)/tools/esptool/esptool)
 ESPTOOL ?= $(if $(NO_PY_WRAP),$(ESPTOOL_FILE),$(PY_WRAP) esptool)
 ESPTOOL_COM ?= $(ESPTOOL) --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(MCU)
 ifeq ($(IS_ESP32),)
