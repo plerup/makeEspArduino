@@ -71,8 +71,13 @@ HTTP_USR ?= password
 HTTP_OPT ?= --progress-bar -o /dev/null
 
 # Output directory
-BUILD_ROOT ?= /tmp/mkESP
+# BUILD_ROOT ?= /tmp/mkESP
+ifdef BUILD_ROOT
+BUILD_DIR := $(BUILD_ROOT)/$(MAIN_NAME)_$(BOARD)
+else
+BUILD_ROOT := $(shell pwd)/build
 BUILD_DIR ?= $(BUILD_ROOT)/$(MAIN_NAME)_$(BOARD)
+endif
 
 # File system and corresponding disk directories
 FS_TYPE ?= spiffs
@@ -488,8 +493,13 @@ vscode: all
 # Create shortcut command for running this file
 install:
 	@echo Creating command \"$(_SCRIPT)\" in $(BIN_DIR)
+ifeq ($(MSYSTEM)),MINGW32)
+	sh -c 'echo $(_MAKE_COM) "\"\$$@\"" >$(BIN_DIR)/$(_SCRIPT)'
+	chmod +x $(BIN_DIR)/$(_SCRIPT)
+else
 	sudo sh -c 'echo $(_MAKE_COM) "\"\$$@\"" >$(BIN_DIR)/$(_SCRIPT)'
 	sudo chmod +x $(BIN_DIR)/$(_SCRIPT)
+endif	
 
 # Just return the path of the tools directory (intended to be used to find vscode.pl above from othe makefiles)
 tools_dir:
@@ -524,6 +534,7 @@ all: $(BUILD_DIR) $(ARDUINO_MK) prebuild $(MAIN_EXE)
 USE_PREBUILD ?= $(if $(IS_ESP32),1,)
 prebuild:
 ifneq ($(USE_PREBUILD),)
+	touch "$(BUILD_DIR)/file_opts"
 	$(PREBUILD)
 endif
 

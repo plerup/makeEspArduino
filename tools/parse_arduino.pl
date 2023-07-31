@@ -23,6 +23,7 @@ my $flashSize = shift;
 my $os = shift;
 my $lwipvariant = shift;
 my %vars;
+my $mingw32 = $ENV{MSYSTEM};
 
 sub def_var {
   my ($name, $var) = @_;
@@ -79,7 +80,13 @@ foreach my $fn (@ARGV) {
     $key =~ s/$board\.menu\.PartitionScheme\.[^\.]+\.//;
     $key =~ s/^$board\.//;
     $vars{$key} ||= $val;
-    $vars{$1} = $vars{$key} if $key =~ /(.+)\.$os$/;
+	if ($mingw32 == "MINGW32") {
+		if (not $key =~ /\.prebuild\./) {
+			$vars{$1} = $vars{$key} if $key =~ /(.+)\.$os$/;
+		}
+	} else {
+		$vars{$1} = $vars{$key} if $key =~ /(.+)\.$os$/;
+	}
   }
   close($f);
 }
@@ -172,7 +179,9 @@ $fs_upload_com =~ s/(.+ -ca) .+/$1 \$(SPIFFS_START) -cf \$(FS_IMAGE)/;
 $fs_upload_com =~ s/(.+ --flash_size \S+) .+/$1 \$(SPIFFS_START) \$(FS_IMAGE)/;
 print "FS_UPLOAD_COM?=$fs_upload_com\n";
 $val = multi_com('recipe\.hooks*\.prebuild.*\.pattern');
-$val =~ s/bash -c "(.+)"/$1/g;
+if ($mingw32 != "MINGW32") {
+	$val =~ s/bash -c "(.+)"/$1/g;
+}
 $val =~ s/(#define .+0x)(\`)/"\\$1\"$2/;
 print "PREBUILD=$val\n";
 print "PRELINK=", multi_com('recipe\.hooks\.linking\.prelink.*\.pattern'), "\n";

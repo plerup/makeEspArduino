@@ -15,5 +15,5 @@
 CONFIG_ROOT ?= $(shell cygpath -m $(LOCALAPPDATA))
 ARDUINO_ROOT ?= $(shell cygpath -m $(LOCALAPPDATA)/Arduino15)
 OS_NAME = windows
-BUILD_DIR := $(shell cygpath -m /tmp/mkESP)
+#BUILD_DIR := $(shell cygpath -m /tmp/mkESP)
 ARDUINO_LIBS := $(shell cygpath -m $(HOMEDRIVE)/$(HOMEPATH)/Documents/Arduino/libraries)
