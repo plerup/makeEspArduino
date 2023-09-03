@@ -290,6 +290,7 @@ BUILD_OPT_DST = $(BUILD_DIR)/$(BUILD_OPT_NAME)
 GEN_H_FILES += $(BUILD_OPT_DST)
 $(BUILD_OPT_DST): $(BUILD_OPT_SRC) | $(BUILD_DIR)
 	cp $(BUILD_OPT_SRC) $(BUILD_OPT_DST)
+	touch $(BUILD_DIR)/file_opts
 endif
 
 # Build output root directory
