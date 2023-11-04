@@ -55,6 +55,8 @@ $vars{'build.mmuflags'} = '$(MMU_FLAGS)';
 $vars{'build.vtable_flags'} = '$(VTABLE_FLAGS)';
 $vars{'build.source.path'} = '$(dir $(SKETCH))';
 $vars{'build.variant.path'} = '$(ESP_ROOT)/variants/' . $board;
+$vars{'runtime.os'} = '$(OS)';
+$vars{'build.fqbn'} = 'generic';
 
 # Parse the files and define the corresponding variables
 my $board_defined;
