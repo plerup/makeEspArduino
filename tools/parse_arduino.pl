@@ -175,6 +175,7 @@ $fs_upload_com =~ s/(.+ -ca) .+/$1 \$(SPIFFS_START) -cf \$(FS_IMAGE)/;
 $fs_upload_com =~ s/(.+ --flash_size \S+) .+/$1 \$(SPIFFS_START) \$(FS_IMAGE)/;
 print "FS_UPLOAD_COM?=$fs_upload_com\n";
 $val = multi_com('recipe\.hooks*\.prebuild.*\.pattern');
+$val =~ s#/usr/bin/env ##g;
 $val =~ s/bash -c "(.+)"/$1/g;
 $val =~ s/(#define .+0x)(\`)/"\\$1\"$2/;
 print "PREBUILD=$val\n";
