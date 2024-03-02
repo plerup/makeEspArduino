@@ -1,6 +1,6 @@
 # makeEspArduino
 A makefile for ESP8266 and ESP32 Arduino projects.
-
+Arduino helps in building IOT BAsed projects.
 The main intent for this project is to provide a minimalistic yet powerful and easy configurable
 makefile for projects using the ESP/Arduino framework available at: https://github.com/esp8266/Arduino and https://github.com/espressif/arduino-esp32
 
