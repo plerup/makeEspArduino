@@ -71,7 +71,10 @@ foreach my $fn (@ARGV) {
     my ($key, $val) =($1, $2);
     $board_defined = 1 if $key eq "$board.name";
     # Truncation of some variable names is needed
-    $key =~ s/$board\.menu\.(?:FlashSize|eesz)\.$flashSize\.//;
+    if ($key =~ s/$board\.menu\.(?:FlashSize|eesz)\.$flashSize\.//) {
+      # Make sure that specified flash size is always used
+      $vars{$key} = $val
+    }
     $key =~ s/$board\.menu\.CpuFrequency\.[^\.]+\.//;
     $key =~ s/$board\.menu\.(?:FlashFreq|xtal)\.[^\.]+\.//;
     $key =~ s/$board\.menu\.UploadSpeed\.[^\.]+\.//;

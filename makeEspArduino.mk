@@ -186,7 +186,7 @@ OBJ_EXT = .o
 DEP_EXT = .d
 
 # Special tool definitions
-OTA_TOOL ?= python $(TOOLS_ROOT)/espota.py
+OTA_TOOL ?= python3 $(TOOLS_ROOT)/espota.py
 HTTP_TOOL ?= curl
 
 # Core source files
