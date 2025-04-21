@@ -205,7 +205,7 @@ SRC_LIST = $(BUILD_DIR)/src_list.mk
 FIND_SRC_CMD = $(__TOOLS_DIR)/find_src.pl
 $(SRC_LIST): $(MAKEFILE_LIST) $(FIND_SRC_CMD) | $(BUILD_DIR)
 	$(if $(BUILDING),echo "- Finding all involved files for the build ...",)
-	perl $(FIND_SRC_CMD) "$(EXCLUDE_DIRS)" $(SKETCH) "$(realpath $(CUSTOM_LIBS))" "$(_LIBS)" $(ESP_LIBS) $(ARDUINO_LIBS) >$(SRC_LIST)
+	perl $(FIND_SRC_CMD) "$(EXCLUDE_DIRS)" "$(EXCLUDE_INC)" $(SKETCH) "$(realpath $(CUSTOM_LIBS))" "$(_LIBS)" $(ESP_LIBS) $(ARDUINO_LIBS) >$(SRC_LIST)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(SRC_LIST)

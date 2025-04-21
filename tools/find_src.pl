@@ -24,6 +24,7 @@ my @search_dirs;
 my %src_dirs;
 my %checked_files;
 my $exclude_match;
+my $exclude_inc_match;
 
 sub uniq {
   my %seen;
@@ -81,6 +82,9 @@ sub handle_duplicate {
 $exclude_match = shift;
 $exclude_match .= ($exclude_match ? "|" : "") . '/LittleFS/lib/'; # Fix for now with LittleFS duplicate
 $exclude_match .= "|/.git/"; # Avoid finding files in git directory
+
+$exclude_inc_match = shift;
+$exclude_inc_match .= ($exclude_inc_match ? "|" : "") . '/FastLED/src/'; # Known problem
 
 # Parameters are within quotes to delay possible wildcard file name expansions
 my @libs = split(" ", "@ARGV");
@@ -155,6 +159,7 @@ foreach (keys %src_files) {
 print "USER_INC_DIRS = ";
 # Keep order
 foreach (@search_dirs) {
+  next if $exclude_inc_match && /$exclude_inc_match/;
   print "$_ " if $inc_dirs{$_};
 }
 print "\n";
