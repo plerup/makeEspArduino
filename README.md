@@ -89,8 +89,7 @@ The basic host requirements are:
 
 For an Arduino package installation, `arduino-cli` is also required.
 
-pyserial is used for USB serial-port discovery and the built-in serial
-monitor. It can normally be installed with:
+pyserial is used for USB serial-port discovery and the built-in serial monitor. It can normally be installed with:
 
 ``` sh
 python3 -m pip install pyserial
@@ -271,21 +270,21 @@ makeEspArduino variables where supported.
 
 ESP8266 and ESP32 use different flash-layout models.
 
-For ESP8266, `FLASH_DEF` selects the flash layout from the board's
-`eesz` / flash-size menu. That selection controls the application layout
-and the filesystem region.
+For ESP8266, `FLASH_DEF` selects the flash layout from the board's `eesz` /
+flash-size menu. That selection controls the application layout and the
+filesystem region.
 
-For ESP32, `FLASH_DEF` is not used. Flash layout is defined by a
-partition table. `PARTITION_SCHEME` can be used to select an Arduino
+For ESP32, `FLASH_DEF` is not used. Flash layout is defined by a partition
+table. `PARTITION_SCHEME` can be used to select an Arduino
 `PartitionScheme` menu entry, for example:
 
-``` sh
+```sh
 espmake CHIP=esp32 BOARD=esp32 PARTITION_SCHEME=huge_app
 ```
 
 If `PARTITION_SCHEME` is empty, the board/core default is used. A custom
-partition table can still be supplied through `PART_FILE` where
-supported by the selected core/build flow.
+partition table can still be supplied through `PART_FILE` where supported by
+the selected core/build flow.
 
 ## Inspecting the resolved configuration
 
@@ -446,12 +445,10 @@ directories.
 **BOARD** The type of ESP8266 or ESP32 board you are using. Use the rule
 **list_boards** to show what's available.
 
-**FLASH_DEF** selects the ESP8266 flash layout. It is not used for
-ESP32.
+**FLASH_DEF** selects the ESP8266 flash layout. It is not used for ESP32.
 
-**PARTITION_SCHEME** selects an ESP32 Arduino `PartitionScheme` menu
-entry. If it is not specified, the board/core default partition scheme
-is used.
+**PARTITION_SCHEME** selects an ESP32 Arduino `PartitionScheme` menu entry.
+If it is not specified, the board/core default partition scheme is used.
 
 **BUILD_DIR** All intermediate build files (object, map files etc.) are
 stored in a separate directory controlled by this variable. By default
@@ -463,6 +460,16 @@ set to a non-temporary location if so is desired.
 **BUILD_EXTRA_FLAGS** this variable can be setup to add additional
 parameters for the compilation commands. It will be placed last and
 thereby it is possible to override the preceding default ones.
+
+For ESP32, **USB_CDC** can be set to `1` or `0` to explicitly enable or
+disable USB CDC serial output on boot. If it is not specified, the selected
+board/core configuration is left unchanged. This is useful on boards using
+native USB where `Serial` output otherwise may not appear on the USB serial
+port.
+
+Example:
+
+    espmake32 USB_CDC=1
 
 It is also possible to set file specific compilation parameters by
 defining a variable which starts with the name of the actual source file
@@ -496,14 +503,14 @@ operations, configuration variables and their default values via the
 
 ##### Build time and version information
 
-makeEspArduino automatically generates header and C source files
-containing information about the time when the build (link) was
-performed. The generated information also includes the git descriptions
-(tags) of the ESP Arduino environment and project source, when
-applicable. This can be used by project source files to provide
-stringent version information from within the software. The information
-is stored in a global struct variable named `_BuildInfo` with the
-following string constant fields:
+makeESPArduino will also automatically produce header and c files which
+contain information about the time when the build (link) was performed.
+This file also includes the git descriptions (tag) of the used version
+of the ESP/Arduino environment and the project source (when applicable).
+This can be used by the project source files to provide stringent
+version information from within the software. The information is put
+into a global struct variable named "\_BuildInfo" with the following
+string constant fields:
 
 | Name | Value |
 | --- | --- |
@@ -576,9 +583,9 @@ setup procedure supplied by the corresponding ESP8266 or ESP32 Arduino
 repository.
 
 The serial port is controlled by `UPLOAD_PORT`. If it is not specified,
-makeEspArduino uses pyserial to select the first detected USB serial
-port. Set `UPLOAD_PORT` explicitly when several USB serial devices are
-connected or when a non-USB serial port should be used.
+makeEspArduino uses pyserial to select the first detected USB serial port.
+Set `UPLOAD_PORT` explicitly when several USB serial devices are connected
+or when a non-USB serial port should be used.
 
 The upload baud rate is controlled by `UPLOAD_SPEED`. Its default is
 taken from the selected board configuration. Higher speeds such as
@@ -591,31 +598,39 @@ uploading a complete flash filesystem to the ESP. This is basically the
 same functionality as the one available in the Arduino IDE,
 https://github.com/esp8266/Arduino/blob/master/doc/filesystem.rst#uploading-files-to-file-system
 
-LittleFS is the default filesystem. SPIFFS remains available for
-existing projects by setting **FS_TYPE=spiffs**. The selected filesystem
-is specified with the **FS_TYPE** variable.
+LittleFS is the default filesystem. SPIFFS remains available for existing
+projects by setting **FS_TYPE=spiffs**. The selected filesystem is specified
+with the **FS_TYPE** variable.
 
 For ESP8266, the size and flash location are determined by the selected
-`FLASH_DEF` and exposed by the core through its historical
-`build.spiffs_*` properties. For ESP32, makeEspArduino uses the
-partition table selected by `PARTITION_SCHEME` (or the board/core
-default) and resolved by the core's prebuild step at
-`$(BUILD_DIR)/partitions.csv`.
+`FLASH_DEF` and exposed by the core through its historical `build.spiffs_*`
+properties. For ESP32, makeEspArduino uses the partition table selected by
+`PARTITION_SCHEME` (or the board/core default) and resolved by the core's
+prebuild step at `$(BUILD_DIR)/partitions.csv`.
 
 The filesystem content is made up of everything within a directory
 specified via the variable **FS_DIR**. By default this variable is set
 to a subdirectory named **data** in the sketch directory.
 
 Use the rule **flash_fs** or **ota_fs** to generate a filesystem image
-and upload it to the ESP.
+and upload it to the ESP. The **flash_fs** target writes the image directly
+to the filesystem partition selected by `FS_START`.
 
 All the settings for the filesystem are taken from the selected board's
 configuration.
 
-It is also possible to dump and recreate the complete filesystem from
-the device via the rule **dump_fs**. The corresponding flash section
-will be extracted and the individual files recreated in a directory in
-the build structure.
+The **dump_fs** target reads the complete filesystem partition from the
+device and extracts its files into **FS_DUMP_DIR**, which defaults to the
+`file_system` directory in the build directory.
+
+To restore such a dump, use **flash_fs** with **FS_DIR** set to the dumped
+directory, for example:
+
+    espmake flash_fs FS_DIR=/tmp/mkESP/my_project_board/file_system
+
+For ESP32 these operations use the filesystem partition resolved from the
+selected partition table. For ESP8266 they use the filesystem start and size
+provided by the selected flash layout.
 
 #### Specifying custom partition schemes
 
@@ -629,19 +644,29 @@ is required.
 
 #### Additional flash I/O operations
 
-The makefile has rules for dumping and restoring the whole flash memory
-contents to and from a file. This can be convenient for saving a
-specific state or software for which no source code is available.
+The makefile has rules for dumping and restoring flash memory to and from
+a raw binary file. This can be convenient for saving a specific state or
+software for which no source code is available.
 
-The rules are named **dump_flash** and **restore_flash**. The name of
-the output/input file is controlled by the variable **FLASH_FILE**. The
-default value for this is "esp_flash.bin". All required parameters for
-the operations are taken from the variables mentioned above for flash
-size, serial port and speed etc.
+The rules are named **dump_flash** and **restore_flash**. The binary file is
+controlled by **FLASH_FILE**, which defaults to `esp_flash.bin` in the build
+directory. **DUMP_ADDR** specifies the flash start address for both operations.
+**DUMP_SIZE** specifies how much data **dump_flash** reads.
 
-Example:
+For ESP32, `DUMP_SIZE` defaults to `ALL`, allowing esptool to determine the
+complete flash size. For ESP8266, the default dump size is derived from the
+selected `FLASH_DEF`. A partial dump can be made by specifying both the start
+address and size; the same start address must be supplied when restoring that
+binary file.
+
+Examples:
 
     espmake dump_flash FLASH_FILE=my_flash.bin
+    espmake dump_flash FLASH_FILE=app.bin DUMP_ADDR=0x10000 DUMP_SIZE=0x100000
+    espmake restore_flash FLASH_FILE=app.bin DUMP_ADDR=0x10000
+
+The direct flash maintenance operations use the esptool command syntax
+appropriate for the selected ESP8266 or ESP32 core.
 
 #### Building an object file library
 
@@ -656,30 +681,27 @@ Example:
 
 #### Monitor
 
-makeEspArduino provides a **monitor** target for connecting to the
-board's serial port. By default it uses the included
-`tools/miniterm.py`, a small wrapper around pyserial's miniterm
-implementation. The wrapper exits cleanly without a Python traceback on
-serial errors and allows project-specific modification of complete
-output lines.
+makeEspArduino provides a **monitor** target for connecting to the board's
+serial port. By default it uses the included `tools/miniterm.py`, a small
+wrapper around pyserial's miniterm implementation. The wrapper exits cleanly
+without a Python traceback on serial errors and allows project-specific
+modification of complete output lines.
 
 The monitor port defaults to `UPLOAD_PORT`, and the default baud rate is
-115200. The monitor command can be replaced completely with
-`MONITOR_COM`.
+115200. The monitor command can be replaced completely with `MONITOR_COM`.
 
-To modify monitor output, provide a Python module named
-`miniterm_patch.py` that is importable by the monitor process and
-defines:
+To modify monitor output, provide a Python module named `miniterm_patch.py`
+that is importable by the monitor process and defines:
 
 ``` python
 def patch_line(line: str):
     return line
 ```
 
-The function is called for every complete line received from the serial
-port. It can be used for filtering, timestamping, colorization,
-decoding, or other project-specific output transformations. If the
-module is not available, the output is passed through unchanged.
+The function is called for every complete line received from the serial port.
+It can be used for filtering, timestamping, colorization, decoding, or other
+project-specific output transformations. If the module is not available, the
+output is passed through unchanged.
 
 The **run** target performs a combined flash and monitor operation.
 
@@ -720,11 +742,13 @@ applied. If you don't want this function just define the variable
 
 ##### Intermediate object archive
 
-By default all object files are put into an archive as this seems to
-enable the linker to remove 5 kB RAM of unused variables. This is the
-same method that is used by the Arduino IDE. Unfortunately this might
-break some builds e.g. if some special linker flags are used. To disable
-this feature set the **NO_USER_OBJ_LIB** to 1.
+For ESP8266, makeEspArduino links user object files through an archive by
+default. This historically reduces RAM usage in some builds by allowing the
+linker to discard unused objects more effectively. Set **NO_USER_OBJ_LIB=1**
+to link the user object files directly instead.
+
+ESP32 does not use this option; user object files are linked directly, matching
+the Arduino-ESP32 build recipe.
 
 #### User defined make rules
 
@@ -827,6 +851,7 @@ Please note that Cygwin has some special considerations as most executed
 commands expect Windows notations, e.g. COMx for serial port
 specification. All paths should also be given in the forward slash
 format.
+
 
 If your project has additional specific requirements you can add them
 under conditional statements of **\$(OS)** in your project makefiles

@@ -334,11 +334,7 @@ if ($vars{'build.spiffs_start'}) {
 $vars{'build.spiffs_blocksize'} ||= "4096";
 print "FS_BLOCK_SIZE?=$vars{'build.spiffs_blocksize'}\n";
 print "MK_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(FS_BLOCK_SIZE) -s \$(FS_SIZE) -c \$(FS_DIR) \$(FS_IMAGE)\n";
-print "RESTORE_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(FS_BLOCK_SIZE) -s \$(FS_SIZE) -u \$(FS_RESTORE_DIR) \$(FS_IMAGE)\n";
-my $fs_upload_com = $upload_com;
-$fs_upload_com =~ s/(.+ -ca) .+/$1 \$(FS_START) -cf \$(FS_IMAGE)/;
-$fs_upload_com =~ s/(.+ --flash_size \S+) .+/$1 \$(FS_START) \$(FS_IMAGE)/;
-print "FS_UPLOAD_COM?=$fs_upload_com\n";
+print "EXTRACT_FS_COM?=\"\$(MK_FS_PATH)\" -b \$(FS_BLOCK_SIZE) -s \$(FS_SIZE) -u \$(FS_DUMP_DIR) \$(FS_IMAGE)\n";
 $val = multi_com('recipe\.hooks*\.prebuild.*\.pattern');
 $val =~ s#/usr/bin/env ##g;
 $val =~ s/bash -c "(.+)"/$1/g;

@@ -95,10 +95,17 @@ FS_TYPE_LC := $(call lc,$(FS_TYPE))
 FS_TYPE_UC := $(call uc,$(FS_TYPE))
 MK_FS_MATCH = mk$(FS_TYPE_LC)
 FS_DIR ?= $(dir $(SKETCH))data
-FS_RESTORE_DIR ?= $(BUILD_DIR)/file_system
+FS_DUMP_DIR ?= $(BUILD_DIR)/file_system
 
 # Make the selected filesystem available to project code
 BUILD_EXTRA_FLAGS += -DFS_$(FS_TYPE_UC)=1 -DFS_TYPE=\"$(FS_TYPE_LC)\"
+
+# Optional ESP32 USB CDC serial output on boot override
+ifneq ($(IS_ESP32),)
+  ifneq ($(USB_CDC),)
+    BUILD_EXTRA_FLAGS += -DARDUINO_USB_CDC_ON_BOOT=$(USB_CDC)
+  endif
+endif
 
 # The default board must be known before resolving an installed platform with arduino-cli
 BOARD ?= $(if $(IS_ESP32),esp32,generic)
@@ -161,7 +168,13 @@ endif
 # ESPTOOL_FILE is emitted by parse_arduino.pl from platform properties.
 MCU ?= $(CHIP)
 ESPTOOL ?= $(ESPTOOL_FILE)
-ESPTOOL_COM ?= $(ESPTOOL) --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(MCU)
+ifeq ($(IS_ESP32),)
+  # ESP8266 tools.esptool.cmd is the bundled Python interpreter. Use a small
+  # wrapper to load the esptool and pyserial packages installed beside upload.py.
+  ESPTOOL_COM ?= $(ESPTOOL) -I $(__TOOLS_DIR)/esptool_wrap.py $(ESP_ROOT)/tools --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(MCU)
+else
+  ESPTOOL_COM ?= $(ESPTOOL) --baud=$(UPLOAD_SPEED) --port $(UPLOAD_PORT) --chip $(MCU)
+endif
 
 # Detect whether the specified goal involves building
 GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)
@@ -365,11 +378,12 @@ ifdef USER_RULES
 include $(USER_RULES)
 endif
 
-# Putting the object files in a library minimizes memory usage in the executable
-ifneq ($(NO_USER_OBJ_LIB),)
-  USER_OBJ_DEP = $(USER_OBJ)
+# ESP8266 historically benefits from linking user objects through an archive.
+# ESP32 follows the Arduino core and links user object files directly.
+ifeq ($(IS_ESP32),)
+  USER_OBJ_DEP = $(if $(NO_USER_OBJ_LIB),$(USER_OBJ),$(USER_OBJ_LIB))
 else
-  USER_OBJ_DEP = $(USER_OBJ_LIB)
+  USER_OBJ_DEP = $(USER_OBJ)
 endif
 
 # Linking the executable
@@ -431,7 +445,8 @@ fs: $(FS_IMAGE)
 
 upload_fs flash_fs: $(FS_IMAGE)
 	$(CHECK_PORT)
-	$(FS_UPLOAD_COM)
+	@echo Flashing filesystem image to $(call dump_hex,$(FS_START)): $(FS_IMAGE)
+	$(ESPTOOL_COM) $(ESPTOOL_RESET) $(ESPTOOL_WRITE_FLASH) $(FS_START) $(FS_IMAGE)
 
 ota_fs: $(FS_IMAGE)
 ifeq ($(OTA_ADDR),)
@@ -450,28 +465,56 @@ endif
 	$(MONITOR_COM)
 
 FLASH_FILE ?= $(BUILD_DIR)/esp_flash.bin
+DUMP_ADDR ?= 0
+
+# ESP8266 cores use the traditional underscore command names. Current ESP32
+# tool packages use esptool v5 with hyphenated command names.
+ifeq ($(IS_ESP32),)
+  DUMP_SIZE ?= $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";$$n=$$1*1024;$$n*=1024 if $$2 eq "M";print $$n;' $(FLASH_DEF))
+  ESPTOOL_READ_FLASH = read_flash
+  ESPTOOL_WRITE_FLASH = write_flash
+  ESPTOOL_ERASE_FLASH = erase_flash
+  ESPTOOL_RESET = $(UPLOAD_RESET)
+else
+  DUMP_SIZE ?= ALL
+  ESPTOOL_READ_FLASH = read-flash
+  ESPTOOL_WRITE_FLASH = write-flash
+  ESPTOOL_ERASE_FLASH = erase-flash
+  # esptool v5 uses hyphenated reset-mode values.
+  ESPTOOL_RESET = $(subst _,-,$(UPLOAD_RESET))
+endif
+
+# Format dump address/size for display. Numeric values are shown in hexadecimal;
+# ALL remains unchanged.
+dump_hex = $(shell perl -e '$$v=shift; if (uc($$v) eq "ALL") { print "ALL"; } elsif ($$v =~ /^0x/i) { printf "0x%X", hex($$v); } elsif ($$v =~ /^(\d+)([kKmM])?$$/) { $$n=$$1; $$n*=1024 if defined $$2 && lc($$2) eq "k"; $$n*=1024*1024 if defined $$2 && lc($$2) eq "m"; printf "0x%X", $$n; } else { print $$v; }' '$(1)')
+
 dump_flash:
 	$(CHECK_PORT)
-	@echo Dumping flash memory to file: $(FLASH_FILE)
-	$(ESPTOOL_COM) read_flash 0 $(shell perl -e 'shift =~ /(\d+)([MK])/ || die "Invalid memory size\n";$$mem_size=$$1*1024;$$mem_size*=1024 if $$2 eq "M";print $$mem_size;' $(FLASH_DEF)) $(FLASH_FILE)
+	@echo Dumping flash memory from $(call dump_hex,$(DUMP_ADDR)), size $(call dump_hex,$(DUMP_SIZE)), to: $(FLASH_FILE)
+	$(ESPTOOL_COM) $(ESPTOOL_READ_FLASH) $(DUMP_ADDR) $(DUMP_SIZE) $(FLASH_FILE)
 
-dump_fs:
+dump_fs: prebuild
 	$(CHECK_PORT)
-	@echo Dumping filesystem to directory: $(FS_RESTORE_DIR)
-	-$(ESPTOOL_COM) read_flash $(FS_START) $(FS_SIZE) $(FS_IMAGE)
-	mkdir -p $(FS_RESTORE_DIR)
+	@if [ -z "$(FS_START)" ] || [ -z "$(FS_SIZE)" ]; then \
+	  echo "== Error: No filesystem partition is available"; \
+	  exit 1; \
+	fi
+	@echo Dumping filesystem from $(call dump_hex,$(FS_START)), size $(call dump_hex,$(FS_SIZE)), to: $(FS_DUMP_DIR)
+	$(ESPTOOL_COM) $(ESPTOOL_READ_FLASH) $(FS_START) $(FS_SIZE) $(FS_IMAGE)
+	rm -rf $(FS_DUMP_DIR)
+	mkdir -p $(FS_DUMP_DIR)
 	@echo
 	@echo == Files ==
-	$(RESTORE_FS_COM)
+	$(EXTRACT_FS_COM)
 
 restore_flash:
 	$(CHECK_PORT)
-	@echo Restoring flash memory from file: $(FLASH_FILE)
-	$(ESPTOOL_COM) $(UPLOAD_RESET) write_flash 0 $(FLASH_FILE)
+	@echo Restoring flash memory to $(call dump_hex,$(DUMP_ADDR)) from file: $(FLASH_FILE)
+	$(ESPTOOL_COM) $(ESPTOOL_RESET) $(ESPTOOL_WRITE_FLASH) $(DUMP_ADDR) $(FLASH_FILE)
 
 erase_flash:
 	$(CHECK_PORT)
-	$(ESPTOOL_COM) erase_flash
+	$(ESPTOOL_COM) $(ESPTOOL_ERASE_FLASH)
 
 # Build a library instead of an executable
 LIB_OUT_FILE ?= $(BUILD_DIR)/$(MAIN_NAME).a
@@ -586,9 +629,12 @@ help: $(ARDUINO_MK)
 	@echo "  ota_fs               Build and flash the file system via OTA"
 	@echo "  http                 Build and flash via HTTP (curl)"
 	@echo "                         Params: HTTP_ADDR, HTTP_URI, HTTP_PWD and HTTP_USR"
-	@echo "  dump_flash           Dump the whole board flash memory to a file"
-	@echo "  restore_flash        Restore flash memory from a previously dumped file"
-	@echo "  dump_fs              Extract all files from the flash file system"
+	@echo "  dump_flash           Dump flash memory to a binary file"
+	@echo "                         Params: FLASH_FILE, DUMP_ADDR and DUMP_SIZE"
+	@echo "                         Defaults: DUMP_ADDR=$(DUMP_ADDR), DUMP_SIZE=$(DUMP_SIZE)"
+	@echo "  restore_flash        Restore flash memory from a binary dump file"
+	@echo "                         Params: FLASH_FILE and DUMP_ADDR"
+	@echo "  dump_fs              Dump and extract the filesystem from flash"
 	@echo "                         Params: FS_DUMP_DIR"
 	@echo "  erase_flash          Erase the whole flash (use with care!)"
 	@echo "  list_lib             Show a list of used source files and include directories"
@@ -624,14 +670,24 @@ endif
 	@echo "  BUILD_DIR            Directory for intermediate build files."
 	@echo "                         Default '$(BUILD_DIR)'"
 	@echo "  BUILD_EXTRA_FLAGS    Additional parameters for the compilation commands"
+ifeq ($(IS_ESP32),1)
+	@echo "  USB_CDC              Enable USB CDC serial output on boot (0 or 1)"
+	@echo "                         Default: board/core configuration"
+endif
 	@echo "  COMP_WARNINGS        Compilation warning options. Default: $(COMP_WARNINGS)"
 	@echo "  FS_TYPE              Filesystem type. Default: $(FS_TYPE)"
 	@echo "  FS_DIR               Filesystem root directory"
+	@echo "  FS_DUMP_DIR          Directory used by dump_fs"
+	@echo "                         Default: $(FS_DUMP_DIR)"
 	@echo "  UPLOAD_PORT          Serial flashing port name. Default: '$(UPLOAD_PORT)'"
 	@echo "  UPLOAD_SPEED         Serial flashing baud rate. Default: '$(UPLOAD_SPEED)'"
 	@echo "  MONITOR_SPEED        Baud rate for the monitor. Default: '$(MONITOR_SPEED)'"
-	@echo "  FLASH_FILE           File name for dump and restore flash operations"
-	@echo "                          Default: '$(FLASH_FILE)'"
+	@echo "  FLASH_FILE           Binary file for dump and restore flash operations"
+	@echo "                         Default: '$(FLASH_FILE)'"
+	@echo "  DUMP_ADDR            Start address for dump and restore"
+	@echo "                         Default: $(DUMP_ADDR)"
+	@echo "  DUMP_SIZE            Dump size in bytes, hex, k/M suffix, or ALL"
+	@echo "                         Default: $(DUMP_SIZE)"
 	@echo "  LWIP_VARIANT         Use specified variant of the lwip library when applicable"
 	@echo "                         Use 'list_lwip' to get list of available ones"
 	@echo "                         Default: $(LWIP_VARIANT) ($(LWIP_INFO))"
@@ -639,7 +695,9 @@ endif
 	@echo "  BUILD_THREADS        Number of parallel build threads"
 	@echo "                         Default: Maximum possible, based on number of CPUs"
 	@echo "  USE_CCACHE           Set to 0 to disable ccache when it is available"
-	@echo "  NO_USER_OBJ_LIB      Set to 1 to disable putting all object files into an archive"
+ifeq ($(IS_ESP32),)
+	@echo "  NO_USER_OBJ_LIB      Set to 1 to link ESP8266 user objects directly"
+endif
 	@echo
 
 # Show installation information
