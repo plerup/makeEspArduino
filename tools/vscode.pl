@@ -86,12 +86,32 @@ my $prop_file_name = "$config_dir/c_cpp_properties.json";
 my $prop_json = file_to_string($prop_file_name) || '{"version": 4, "configurations": []}';
 
 # Build this configuration from command line defines and includes
-while ($_ = shift) {
+my $inc_prefix = "";
+while (defined($_ = shift)) {
+  # Response file, this is where the core defines and include directories are found
+  if (/^\@(.+)/ && -f $1) {
+    unshift(@ARGV, split(" ", file_to_string($1)));
+    next;
+  }
   $_ .= shift if ($_ eq "-D");
+  # Include directories may be specified relative to a common prefix
+  if ($_ eq "-iprefix") {
+    $inc_prefix = shift;
+    next;
+  }
+  if (/^-iwithprefix(before)?$/) {
+    # These are far too many to list, use one recursive wildcard for the whole tree
+    shift;
+    if ($inc_prefix && -d $inc_prefix) {
+      push(@includes, "\"${inc_prefix}**\"");
+      $inc_prefix = "";
+    }
+    next;
+  }
   if (/-D\s*(\S+)/) {
-    # May be a quoted value
+    # May be a quoted value, in a response file the quotes are escaped
     my $def = $1;
-    $def =~ s/\"/\\\"/g;
+    $def =~ s/\\?\"/\\\"/g;
     push(@defines, "\"$def\"")
   }
   push(@includes, "\"" . Cwd::abs_path($1) . "\"") if /-I\s*(\S+)/ && -e $1;
